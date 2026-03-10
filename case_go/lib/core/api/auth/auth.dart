@@ -8,6 +8,12 @@ import 'dart:async';
 /// - POST /refresh
 /// - GET  /me
 abstract class AuthApi {
+  /// Авторизует / регистрирует пользователя через Google OAuth.
+  ///
+  /// [body] — объект с полем `id_token` (Google ID Token).
+  /// Возвращает объект с `access`, `refresh` токенами и данными пользователя.
+  Future<Map<String, dynamic>> googleAuth(Map<String, dynamic> body);
+
   /// Регистрирует нового пользователя.
   ///
   /// [body] — данные пользователя (имя, email, пароль и т.д.).

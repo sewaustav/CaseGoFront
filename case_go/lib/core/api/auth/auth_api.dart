@@ -75,6 +75,18 @@ class AuthApiImpl implements AuthApi {
   // ──────────────────────────────────────────
   // Реализация интерфейса
   // ──────────────────────────────────────────
+  @override
+  Future<Map<String, dynamic>> googleAuth(Map<String, dynamic> body) async {
+    const path = '/auth/google';
+    _logRequest('POST', path);
+    final response = await _client.post(
+      _uri(path),
+      headers: _publicHeaders,
+      body: _encode(body),
+    );
+    return _handleResponse(response);
+  }
+
 
   @override
   Future<Map<String, dynamic>> register(Map<String, dynamic> body) async {
