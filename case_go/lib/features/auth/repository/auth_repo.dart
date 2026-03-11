@@ -51,8 +51,10 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final data =
-          await _api.obtainToken({'email': email, 'password': password});
+      final data = await _api.obtainToken({
+        'username': email,  
+        'password': password,
+      });
       await _saveTokens(
         access: data['access'] as String,
         refresh: data['refresh'] as String,
@@ -65,25 +67,32 @@ class AuthRepository {
 
   /// Регистрация по email + password.
   Future<AuthUser> register({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final data = await _api.register({
-        'username': name,
-        'email': email,
-        'password': password,
-      });
-      await _saveTokens(
-        access: data['access'] as String,
-        refresh: data['refresh'] as String,
-      );
-      return _fetchMe();
-    } on ApiException catch (e) {
-      throw AuthFailureException(_mapApiError(e));
-    }
+  required String name,
+  required String email,
+  required String password,
+}) async {
+  try {
+    // Регистрируем — бэк возвращает только данные юзера, без токенов
+    await _api.register({
+      'username': name,
+      'email': email,
+      'password': password,
+    });
+    
+    // Сразу логинимся чтобы получить токены
+    final tokenData = await _api.obtainToken({
+      'username': email, 
+      'password': password,
+    });
+    await _saveTokens(
+      access: tokenData['access'] as String,
+      refresh: tokenData['refresh'] as String,
+    );
+    return _fetchMe();
+  } on ApiException catch (e) {
+    throw AuthFailureException(_mapApiError(e));
   }
+}
 
   /// Вход через Google (google_sign_in ^7.0).
   Future<AuthUser> loginWithGoogle() async {

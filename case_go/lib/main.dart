@@ -23,9 +23,7 @@ void main() async {
   getIt.registerSingleton<AuthApi>(
     AuthApiImpl(
       baseUrl: 'http://localhost:8000/api/v1/auth',
-      accessTokenProvider: () => storage.getAccessToken() as String?,
-      // getAccessToken() — Future, поэтому лучше кешировать токен.
-      // Смотри NOTE ниже.
+      accessTokenProvider: () => storage.accessTokenSync, // ← синхронный геттер
     ),
   );
 
@@ -36,17 +34,7 @@ void main() async {
   runApp(const CaseGo());
 }
 
-// NOTE: getAccessToken() возвращает Future<String?>, а accessTokenProvider
-// ожидает синхронный String? Function().
-// Реши это одним из двух способов:
-//
-// ВАРИАНТ А (простой) — кешируй токен в StorageService:
-//   Добавь поле `String? cachedAccessToken` в StorageService,
-//   обновляй его при setAccessToken() и читай синхронно.
-//
-// ВАРИАНТ Б — используй отдельный TokenHolder:
-//   class TokenHolder { String? accessToken; }
-//   и передавай () => tokenHolder.accessToken
+
 
 class CaseGo extends StatelessWidget {
   const CaseGo({super.key});

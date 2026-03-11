@@ -93,10 +93,14 @@ class AuthApiImpl implements AuthApi {
   Future<Map<String, dynamic>> obtainToken(Map<String, dynamic> body) async {
     const path = '/token';
     _logRequest('POST', path);
+    // OAuth2PasswordRequestForm ждёт form-urlencoded, не JSON
     final response = await _client.post(
       _uri(path),
-      headers: _publicHeaders,
-      body: _encode(body),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: body.map((k, v) => MapEntry(k, v.toString())),
     );
     return _handleResponse(response);
   }
