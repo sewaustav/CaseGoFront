@@ -3,18 +3,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 // --- События ---
 abstract class HomeEvent {}
+
 class AppStarted extends HomeEvent {}
+
+class LogoutRequested extends HomeEvent {}
 
 // --- Состояния ---
 abstract class HomeState {}
+
 class HomeLoading extends HomeState {}
+
 class Authenticated extends HomeState {
   final Map<String, dynamic> user;
   Authenticated(this.user);
 }
+
 class Unauthenticated extends HomeState {}
 
-// --- Сам Блок ---
+// --- Блок ---
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final HomeRepository repository;
 
@@ -30,6 +36,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       } catch (e) {
         emit(Unauthenticated());
       }
+    });
+
+    on<LogoutRequested>((event, emit) async {
+      await repository.logout();
+      emit(Unauthenticated());
     });
   }
 }

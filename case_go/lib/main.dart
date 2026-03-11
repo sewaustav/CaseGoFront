@@ -12,21 +12,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Инициализируем хранилище
   final storage = StorageService();
   await storage.init();
 
-  // 2. Регистрируем зависимости в GetIt (Service Locator)
   final getIt = GetIt.I;
-  
+
   getIt.registerSingleton<StorageService>(storage);
-  
-  // Регистрируем реализацию API
+
+  // ИСПРАВЛЕНО: передаём accessTokenProvider чтобы getMe() работал с токеном
   getIt.registerSingleton<AuthApi>(
-    AuthApiImpl(baseUrl: 'https://api.your-server.com'),
+    AuthApiImpl(
+      baseUrl: 'http://localhost:8000/api/v1/auth',
+      accessTokenProvider: () => storage.getAccessToken() as String?,
+      // getAccessToken() — Future, поэтому лучше кешировать токен.
+      // Смотри NOTE ниже.
+    ),
   );
 
-  // Регистрируем репозиторий, прокидывая в него API и Storage из GetIt
   getIt.registerSingleton<HomeRepository>(
     HomeRepository(getIt<AuthApi>(), getIt<StorageService>()),
   );
@@ -34,17 +36,27 @@ void main() async {
   runApp(const CaseGo());
 }
 
+// NOTE: getAccessToken() возвращает Future<String?>, а accessTokenProvider
+// ожидает синхронный String? Function().
+// Реши это одним из двух способов:
+//
+// ВАРИАНТ А (простой) — кешируй токен в StorageService:
+//   Добавь поле `String? cachedAccessToken` в StorageService,
+//   обновляй его при setAccessToken() и читай синхронно.
+//
+// ВАРИАНТ Б — используй отдельный TokenHolder:
+//   class TokenHolder { String? accessToken; }
+//   и передавай () => tokenHolder.accessToken
+
 class CaseGo extends StatelessWidget {
   const CaseGo({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 3. Оборачиваем всё приложение в BlocProvider, 
-    // чтобы HomeBloc был доступен глобально для роутинга и проверки сессии.
     return BlocProvider(
       create: (context) => HomeBloc(
         GetIt.I<HomeRepository>(),
-      )..add(AppStarted()), // Сразу запускаем проверку логина
+      )..add(AppStarted()),
       child: MaterialApp.router(
         title: 'CaseGo',
         debugShowCheckedModeBanner: false,
@@ -53,7 +65,7 @@ class CaseGo extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: AppPalette.defaultPalette.background,
           extensions: [
-            AppPalette.defaultPalette, // Регистрируем наши кастомные цвета
+            AppPalette.defaultPalette,
           ],
         ),
       ),

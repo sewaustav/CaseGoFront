@@ -1,52 +1,54 @@
 import 'package:case_go/core/theme/app_palete.dart';
+import 'package:case_go/features/home/home_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'home_bloc.dart';
- // Путь к твоей палитре
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
+    final palette =
+        Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
 
-    return Scaffold(
-      backgroundColor: palette.background,
-      // Используем Stack, чтобы плавающая панель была поверх контента
-      body: Stack(
-        children: [
-          CustomScrollView(
-            slivers: [
-              // --- 1. ЗАГОЛОВОК И ПРОФИЛЬ ---
-              _buildAppBar(context, palette),
-
-              // --- 2. КВАДРАТНЫЕ КНОПКИ ---
-              SliverToBoxAdapter(
-                child: _buildActionGrid(context, palette),
-              ),
-
-              // --- 3. СТАТЬИ (Заглушки) ---
-              SliverPadding(
-                padding: const EdgeInsets.only(bottom: 100), // Отступ под панель
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildArticleCard(palette),
-                    childCount: 5,
+    // BlocListener следит за HomeBloc:
+    // как только стал Unauthenticated — роутер сам сделает редирект,
+    // но на случай logout вручную — дополнительно навигируем на /auth.
+    return BlocListener<HomeBloc, HomeState>(
+      listener: (context, state) {
+        if (state is Unauthenticated) {
+          context.go('/auth');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: palette.background,
+        body: Stack(
+          children: [
+            CustomScrollView(
+              slivers: [
+                _buildAppBar(context, palette),
+                SliverToBoxAdapter(
+                  child: _buildActionGrid(context, palette),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildArticleCard(palette),
+                      childCount: 5,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-
-          // --- 4. ПЛАВАЮЩАЯ НИЖНЯЯ ПАНЕЛЬ ---
-          _buildFloatingBottomBar(palette),
-        ],
+              ],
+            ),
+            _buildFloatingBottomBar(palette),
+          ],
+        ),
       ),
     );
   }
 
-  // --- Компонент: AppBar ---
   Widget _buildAppBar(BuildContext context, AppPalette palette) {
     return SliverAppBar(
       backgroundColor: palette.background,
@@ -64,11 +66,20 @@ class HomeScreen extends StatelessWidget {
       actions: [
         BlocBuilder<HomeBloc, HomeState>(
           builder: (context, state) {
-            bool isAuth = state is Authenticated;
+            final isAuth = state is Authenticated;
             return Padding(
               padding: const EdgeInsets.only(right: 16),
               child: PopupMenuButton<String>(
                 offset: const Offset(0, 50),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'login':
+                    case 'reg':
+                      context.push('/auth');
+                    case 'logout':
+                      context.read<HomeBloc>().add(LogoutRequested());
+                  }
+                },
                 child: CircleAvatar(
                   backgroundColor: palette.contrastBg,
                   child: Icon(
@@ -76,17 +87,26 @@ class HomeScreen extends StatelessWidget {
                     color: isAuth ? palette.altBtn : palette.background,
                   ),
                 ),
-                onSelected: (value) {
-                  // Здесь будут ссылки
-                },
                 itemBuilder: (context) => isAuth
                     ? [
-                        const PopupMenuItem(value: 'profile', child: Text('Профиль')),
-                        const PopupMenuItem(value: 'logout', child: Text('Выйти')),
+                        const PopupMenuItem(
+                          value: 'profile',
+                          child: Text('Профиль'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Text('Выйти'),
+                        ),
                       ]
                     : [
-                        const PopupMenuItem(value: 'login', child: Text('Войти')),
-                        const PopupMenuItem(value: 'reg', child: Text('Регистрация')),
+                        const PopupMenuItem(
+                          value: 'login',
+                          child: Text('Войти'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'reg',
+                          child: Text('Регистрация'),
+                        ),
                       ],
               ),
             );
@@ -96,13 +116,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- Компонент: Сетка из двух квадратов ---
   Widget _buildActionGrid(BuildContext context, AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: Row(
         children: [
-          // Квадрат 1: Начать тренировку
           Expanded(
             child: AspectRatio(
               aspectRatio: 1,
@@ -131,7 +149,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Квадрат 2: Подобрать по параметрам
           Expanded(
             child: AspectRatio(
               aspectRatio: 1,
@@ -164,7 +181,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- Компонент: Карточка статьи (Заглушка) ---
   Widget _buildArticleCard(AppPalette palette) {
     return Container(
       margin: const EdgeInsets.all(10),
@@ -178,7 +194,11 @@ class HomeScreen extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-            child: Container(height: 150, color: Colors.grey[300], child: const Center(child: Icon(Icons.image))),
+            child: Container(
+              height: 150,
+              color: Colors.grey[300],
+              child: const Center(child: Icon(Icons.image)),
+            ),
           ),
           const Padding(
             padding: EdgeInsets.all(12),
@@ -192,7 +212,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- Компонент: Плавающая нижняя панель ---
   Widget _buildFloatingBottomBar(AppPalette palette) {
     return Positioned(
       bottom: 20,
@@ -207,12 +226,10 @@ class HomeScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Левая кнопка: Диаграмма
             IconButton(
               icon: Icon(Icons.bar_chart, color: palette.background),
               onPressed: () {},
             ),
-            // Центральная кнопка: Тренажер
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
@@ -225,12 +242,14 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'Тренажер',
-                    style: TextStyle(color: palette.contrastBg, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: palette.contrastBg,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
             ),
-            // Правая кнопка: Обратная связь
             IconButton(
               icon: Icon(Icons.question_answer_outlined, color: palette.background),
               onPressed: () {},

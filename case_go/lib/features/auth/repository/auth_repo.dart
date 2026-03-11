@@ -7,21 +7,31 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 /// Репозиторий аутентификации.
 ///
-/// Зависит только от [AuthApi] и [StorageService] — оба передаются снаружи.
-/// Токены хранятся в [StorageService]; в HTTP-заголовки они не прокидываются
-/// отсюда — это зона [AuthApiImpl] или интерцептора.
+/// Совместим с google_sign_in ^7.0 — новый singleton API:
+///   GoogleSignIn.instance  вместо  GoogleSignIn()
+///   .authenticate()        вместо  .signIn()
+///   .signOut()             не изменился
 class AuthRepository {
   final AuthApi _api;
   final StorageService _storage;
-  final GoogleSignIn _googleSignIn;
+
+  // v7: singleton, не создаём через конструктор
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleInitialized = false;
 
   AuthRepository({
     required AuthApi api,
     required StorageService storage,
-    GoogleSignIn? googleSignIn,
   })  : _api = api,
-        _storage = storage,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+        _storage = storage;
+
+  // ── Инициализация Google ──────────────────────────────────
+
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleInitialized) return;
+    await _googleSignIn.initialize();
+    _googleInitialized = true;
+  }
 
   // ── Токены ────────────────────────────────────────────────
 
@@ -61,7 +71,7 @@ class AuthRepository {
   }) async {
     try {
       final data = await _api.register({
-        'name': name,
+        'username': name,
         'email': email,
         'password': password,
       });
@@ -75,19 +85,46 @@ class AuthRepository {
     }
   }
 
-  /// Вход / регистрация через Google.
+  /// Вход через Google (google_sign_in ^7.0).
   Future<AuthUser> loginWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) throw const AuthCancelledException();
+    await _ensureGoogleInitialized();
 
-    final googleAuth = await googleUser.authentication;
-    final idToken = googleAuth.idToken;
-    if (idToken == null) {
-      throw const AuthFailureException('Не удалось получить Google ID Token');
+    // v7: supportsAuthenticate() — проверяем поддержку платформы
+    if (!_googleSignIn.supportsAuthenticate()) {
+      throw const AuthFailureException(
+        'Google Sign-In не поддерживается на этой платформе',
+      );
     }
 
+    late GoogleSignInAccount googleUser;
     try {
-      final data = await _api.googleAuth({'id_token': idToken});
+      // v7: authenticate() вместо signIn()
+      googleUser = await _googleSignIn.authenticate();
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw const AuthCancelledException();
+      }
+      throw AuthFailureException('Google Sign-In ошибка: ${e.description}');
+    } catch (e) {
+      throw AuthFailureException('Неизвестная ошибка Google Sign-In: $e');
+    }
+
+    // v7: ID-токен получаем через authorizationClient
+    // Нам нужен serverClientId для получения idToken на мобильных платформах.
+    // Если бэкенд принимает accessToken — используй его.
+    // Здесь показан вариант с accessToken (более универсальный для v7).
+    final authorization = await googleUser.authorizationClient
+        .authorizationForScopes(['email', 'profile']);
+
+    if (authorization == null) {
+      throw const AuthFailureException('Не удалось получить токен Google');
+    }
+
+    final accessToken = authorization.accessToken;
+
+    try {
+      // Отправляем accessToken на бэкенд (поменяй ключ если бэкенд ждёт id_token)
+      final data = await _api.googleAuth({'access_token': accessToken});
       await _saveTokens(
         access: data['access'] as String,
         refresh: data['refresh'] as String,
@@ -115,10 +152,15 @@ class AuthRepository {
     }
   }
 
-  /// Выход: чистим токены и Google-сессию.
+  /// Выход.
   Future<void> logout() async {
     await _storage.clearAll();
-    await _googleSignIn.signOut();
+    try {
+      await _ensureGoogleInitialized();
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Игнорируем ошибки Google при логауте
+    }
   }
 
   // ── Приватные хелперы ─────────────────────────────────────
