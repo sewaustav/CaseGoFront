@@ -7,12 +7,12 @@ import 'auth.dart';
 
 class AuthApiImpl implements AuthApi {
   final String baseUrl;
+  final String usersBaseUrl;
   final http.Client _client;
 
   /// Callback для получения актуального access-токена.
-  /// Передай его если хочешь использовать getMe() — иначе оставь null
-  /// и передавай токен вручную (не рекомендуется).
-  final String? Function()? accessTokenProvider;
+  /// Возвращает String? — если null, Authorization-заголовок не добавляется.
+  final String? Function() accessTokenProvider;
 
   static const Map<String, String> _publicHeaders = {
     'Content-Type': 'application/json',
@@ -20,21 +20,29 @@ class AuthApiImpl implements AuthApi {
   };
 
   Map<String, String> get _authHeaders {
-    final token = accessTokenProvider?.call();
+    final token = accessTokenProvider();
+    if (token == null || token.isEmpty) {
+      // Логируем чтобы сразу видеть проблему
+      dev.log('⚠️ accessTokenProvider вернул null — Authorization заголовок не будет добавлен!',
+          name: 'AuthApi');
+    }
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 
   AuthApiImpl({
     required this.baseUrl,
-    this.accessTokenProvider,
+    required this.accessTokenProvider,
+    String? usersBaseUrl,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  })  : usersBaseUrl =
+            usersBaseUrl ?? baseUrl.replaceFirst('/auth', '/users'),
+        _client = client ?? http.Client();
 
-  Uri _uri(String path) => Uri.parse('$baseUrl$path');
+  Uri _uri(String base, String path) => Uri.parse('$base$path');
   String _encode(Map<String, dynamic> body) => jsonEncode(body);
 
   Map<String, dynamic> _decode(http.Response response) =>
@@ -49,7 +57,7 @@ class AuthApiImpl implements AuthApi {
 
   void _logResponse(http.Response response) {
     dev.log(
-      '← ${response.statusCode} ${response.request?.url}',
+      '← ${response.statusCode} ${response.request?.url}\n  body: ${response.body}',
       name: 'AuthApi',
     );
   }
@@ -68,9 +76,9 @@ class AuthApiImpl implements AuthApi {
   @override
   Future<Map<String, dynamic>> googleAuth(Map<String, dynamic> body) async {
     const path = '/auth/google';
-    _logRequest('POST', path);
+    _logRequest('POST', path, body);
     final response = await _client.post(
-      _uri(path),
+      _uri(baseUrl, path),
       headers: _publicHeaders,
       body: _encode(body),
     );
@@ -82,7 +90,7 @@ class AuthApiImpl implements AuthApi {
     const path = '/register';
     _logRequest('POST', path, body);
     final response = await _client.post(
-      _uri(path),
+      _uri(baseUrl, path),
       headers: _publicHeaders,
       body: _encode(body),
     );
@@ -92,10 +100,10 @@ class AuthApiImpl implements AuthApi {
   @override
   Future<Map<String, dynamic>> obtainToken(Map<String, dynamic> body) async {
     const path = '/token';
-    _logRequest('POST', path);
-    // OAuth2PasswordRequestForm ждёт form-urlencoded, не JSON
+    _logRequest('POST', path, body);
+    // OAuth2PasswordRequestForm ждёт form-urlencoded
     final response = await _client.post(
-      _uri(path),
+      _uri(baseUrl, path),
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
@@ -110,7 +118,7 @@ class AuthApiImpl implements AuthApi {
     const path = '/refresh';
     _logRequest('POST', path);
     final response = await _client.post(
-      _uri(path),
+      _uri(baseUrl, path),
       headers: _publicHeaders,
       body: _encode(body),
     );
@@ -120,10 +128,15 @@ class AuthApiImpl implements AuthApi {
   @override
   Future<Map<String, dynamic>> getMe() async {
     const path = '/me';
-    _logRequest('GET', path);
-    // ИСПРАВЛЕНО: используем _authHeaders, а не _publicHeaders
+    _logRequest('GET', 'users$path');
+
+    // Явно логируем токен для отладки
+    final token = accessTokenProvider();
+    dev.log('getMe() token: ${token != null ? '${token.substring(0, 20)}...' : 'NULL'}',
+        name: 'AuthApi');
+
     final response = await _client.get(
-      _uri(path),
+      _uri(usersBaseUrl, path),
       headers: _authHeaders,
     );
     return _handleResponse(response);

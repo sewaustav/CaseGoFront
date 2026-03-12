@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 // Импортируем AuthUser здесь — файлы-части (part) наследуют все импорты
@@ -43,8 +44,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthIdle(mode: _mode));
     } on AuthFailureException catch (e) {
       emit(AuthError(message: e.message, mode: _mode));
-    } catch (_) {
-      emit(AuthError(message: 'Неизвестная ошибка', mode: _mode));
+    } catch (e, st) {
+      debugPrint('AuthBloc error: $e\n$st');
+      emit(AuthError(message: 'Ошибка: $e', mode: _mode));
     }
   }
 

@@ -3,19 +3,13 @@ import 'package:case_go/core/api/auth/auth_api.dart';
 import 'package:case_go/core/storage/storage.dart';
 import 'package:case_go/features/auth/models/auth_exception.dart';
 import 'package:case_go/features/auth/models/auth_user.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-/// Репозиторий аутентификации.
-///
-/// Совместим с google_sign_in ^7.0 — новый singleton API:
-///   GoogleSignIn.instance  вместо  GoogleSignIn()
-///   .authenticate()        вместо  .signIn()
-///   .signOut()             не изменился
 class AuthRepository {
   final AuthApi _api;
   final StorageService _storage;
 
-  // v7: singleton, не создаём через конструктор
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleInitialized = false;
 
@@ -35,12 +29,33 @@ class AuthRepository {
 
   // ── Токены ────────────────────────────────────────────────
 
-  Future<void> _saveTokens({
-    required String access,
-    required String refresh,
-  }) async {
-    await _storage.setAccessToken(access);
-    await _storage.setRefreshToken(refresh);
+  /// Извлекает access-токен из ответа сервера.
+  /// Поддерживает оба варианта именования: 'access' и 'access_token'.
+  String _extractAccessToken(Map<String, dynamic> data) {
+    final token = data['access'] ?? data['access_token'];
+    if (token == null) {
+      throw AuthFailureException(
+        'Сервер не вернул access-токен. Ключи в ответе: ${data.keys.toList()}',
+      );
+    }
+    return token as String;
+  }
+
+  /// Извлекает refresh-токен из ответа сервера.
+  /// Поддерживает оба варианта именования: 'refresh' и 'refresh_token'.
+  String _extractRefreshToken(Map<String, dynamic> data) {
+    final token = data['refresh'] ?? data['refresh_token'];
+    if (token == null) {
+      throw AuthFailureException(
+        'Сервер не вернул refresh-токен. Ключи в ответе: ${data.keys.toList()}',
+      );
+    }
+    return token as String;
+  }
+
+  Future<void> _saveTokens(Map<String, dynamic> tokenData) async {
+    await _storage.setAccessToken(_extractAccessToken(tokenData));
+    await _storage.setRefreshToken(_extractRefreshToken(tokenData));
   }
 
   // ── Публичные методы ──────────────────────────────────────
@@ -51,54 +66,61 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final data = await _api.obtainToken({
-        'username': email,  
+      final tokenData = await _api.obtainToken({
+        'username': email,
         'password': password,
       });
-      await _saveTokens(
-        access: data['access'] as String,
-        refresh: data['refresh'] as String,
-      );
+      debugPrint('Login token response keys: ${tokenData.keys.toList()}');
+      await _saveTokens(tokenData);
       return _fetchMe();
+    } on AuthFailureException {
+      rethrow;
     } on ApiException catch (e) {
       throw AuthFailureException(_mapApiError(e));
+    } catch (e, st) {
+      debugPrint('Login error: $e\n$st');
+      throw AuthFailureException('Ошибка входа: $e');
     }
   }
 
   /// Регистрация по email + password.
   Future<AuthUser> register({
-  required String name,
-  required String email,
-  required String password,
-}) async {
-  try {
-    // Регистрируем — бэк возвращает только данные юзера, без токенов
-    await _api.register({
-      'username': name,
-      'email': email,
-      'password': password,
-    });
-    
-    // Сразу логинимся чтобы получить токены
-    final tokenData = await _api.obtainToken({
-      'username': email, 
-      'password': password,
-    });
-    await _saveTokens(
-      access: tokenData['access'] as String,
-      refresh: tokenData['refresh'] as String,
-    );
-    return _fetchMe();
-  } on ApiException catch (e) {
-    throw AuthFailureException(_mapApiError(e));
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // Шаг 1: регистрация — бэкенд возвращает UserResponse (без токенов)
+      final registerData = await _api.register({
+        'username': name,
+        'email': email,
+        'password': password,
+      });
+      debugPrint('Register response keys: ${registerData.keys.toList()}');
+
+      // Шаг 2: логин — получаем токены
+      final tokenData = await _api.obtainToken({
+        'username': email,
+        'password': password,
+      });
+      debugPrint('Token response keys: ${tokenData.keys.toList()}');
+
+      await _saveTokens(tokenData);
+      return _fetchMe();
+    } on AuthFailureException {
+      rethrow;
+    } on ApiException catch (e) {
+      throw AuthFailureException(_mapApiError(e));
+    } catch (e, st) {
+      debugPrint('Register error: $e\n$st');
+      throw AuthFailureException('Ошибка регистрации: $e');
+    }
   }
-}
 
   /// Вход через Google (google_sign_in ^7.0).
   Future<AuthUser> loginWithGoogle() async {
     await _ensureGoogleInitialized();
 
-    // v7: supportsAuthenticate() — проверяем поддержку платформы
     if (!_googleSignIn.supportsAuthenticate()) {
       throw const AuthFailureException(
         'Google Sign-In не поддерживается на этой платформе',
@@ -107,7 +129,6 @@ class AuthRepository {
 
     late GoogleSignInAccount googleUser;
     try {
-      // v7: authenticate() вместо signIn()
       googleUser = await _googleSignIn.authenticate();
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
@@ -118,10 +139,6 @@ class AuthRepository {
       throw AuthFailureException('Неизвестная ошибка Google Sign-In: $e');
     }
 
-    // v7: ID-токен получаем через authorizationClient
-    // Нам нужен serverClientId для получения idToken на мобильных платформах.
-    // Если бэкенд принимает accessToken — используй его.
-    // Здесь показан вариант с accessToken (более универсальный для v7).
     final authorization = await googleUser.authorizationClient
         .authorizationForScopes(['email', 'profile']);
 
@@ -129,26 +146,29 @@ class AuthRepository {
       throw const AuthFailureException('Не удалось получить токен Google');
     }
 
-    final accessToken = authorization.accessToken;
-
     try {
-      // Отправляем accessToken на бэкенд (поменяй ключ если бэкенд ждёт id_token)
-      final data = await _api.googleAuth({'access_token': accessToken});
-      await _saveTokens(
-        access: data['access'] as String,
-        refresh: data['refresh'] as String,
-      );
+      final data = await _api.googleAuth({
+        'access_token': authorization.accessToken,
+      });
+      debugPrint('Google auth response keys: ${data.keys.toList()}');
+      await _saveTokens(data);
+
       final userJson = data['user'];
       if (userJson is Map<String, dynamic>) {
         return AuthUser.fromJson(userJson);
       }
       return _fetchMe();
+    } on AuthFailureException {
+      rethrow;
     } on ApiException catch (e) {
       throw AuthFailureException(_mapApiError(e));
+    } catch (e, st) {
+      debugPrint('Google login error: $e\n$st');
+      throw AuthFailureException('Ошибка Google входа: $e');
     }
   }
 
-  /// Восстанавливает сессию при старте. Возвращает `null`, если токена нет.
+  /// Восстанавливает сессию при старте.
   Future<AuthUser?> restoreSession() async {
     final access = await _storage.getAccessToken();
     if (access == null || access.isEmpty) return null;
@@ -167,15 +187,14 @@ class AuthRepository {
     try {
       await _ensureGoogleInitialized();
       await _googleSignIn.signOut();
-    } catch (_) {
-      // Игнорируем ошибки Google при логауте
-    }
+    } catch (_) {}
   }
 
   // ── Приватные хелперы ─────────────────────────────────────
 
   Future<AuthUser> _fetchMe() async {
     final data = await _api.getMe();
+    debugPrint('getMe response: $data');
     return AuthUser.fromJson(data);
   }
 
@@ -185,7 +204,7 @@ class AuthRepository {
 
     try {
       final data = await _api.refreshToken({'refresh': refresh});
-      await _storage.setAccessToken(data['access'] as String);
+      await _storage.setAccessToken(_extractAccessToken(data));
       return _fetchMe();
     } on ApiException {
       await _storage.clearAll();
