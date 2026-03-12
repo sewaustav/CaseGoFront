@@ -15,7 +15,7 @@ class StorageService {
     _cachedRefreshToken = await _secure.read(key: 'refreshToken');
     debugPrint(
       'StorageService.init() — accessToken: '
-      '${_cachedAccessToken != null ? '${_cachedAccessToken!.substring(0, 20)}...' : 'null'}',
+      '${_cachedAccessToken != null ? '${_cachedAccessToken}...' : 'null'}',
     );
   }
 
@@ -24,7 +24,7 @@ class StorageService {
   Future<void> setAccessToken(String token) async {
     _cachedAccessToken = token;
     await _secure.write(key: 'accessToken', value: token);
-    debugPrint('StorageService: accessToken сохранён (${token.substring(0, 20)}...)');
+    debugPrint('StorageService: accessToken сохранён (${token})');
   }
 
   Future<String?> getAccessToken() async => _cachedAccessToken;

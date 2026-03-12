@@ -132,6 +132,9 @@ class AuthApiImpl implements AuthApi {
 
     // Явно логируем токен для отладки
     final token = accessTokenProvider();
+    dev.log('getMe → url: ${_uri(usersBaseUrl, path)}', name: 'AuthApi');
+  dev.log('getMe → token: $token', name: 'AuthApi');
+  dev.log('getMe → headers: $_authHeaders', name: 'AuthApi');
     dev.log('getMe() token: ${token != null ? '${token.substring(0, 20)}...' : 'NULL'}',
         name: 'AuthApi');
 
