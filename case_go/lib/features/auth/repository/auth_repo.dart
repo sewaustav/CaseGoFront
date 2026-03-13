@@ -9,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthRepository {
   final AuthApi _api;
   final StorageService _storage;
-
+  static const _webClientId = '507429813406-968aiglclt851uq61tvrse55b16889h1.apps.googleusercontent.com';
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleInitialized = false;
 
@@ -21,9 +21,11 @@ class AuthRepository {
 
   // ── Инициализация Google ──────────────────────────────────
 
-  Future<void> _ensureGoogleInitialized() async {
+Future<void> _ensureGoogleInitialized() async {
     if (_googleInitialized) return;
-    await _googleSignIn.initialize();
+    await _googleSignIn.initialize(
+      serverClientId: _webClientId,
+    );
     _googleInitialized = true;
   }
 
@@ -117,7 +119,6 @@ class AuthRepository {
     }
   }
 
-  /// Вход через Google (google_sign_in ^7.0).
   Future<AuthUser> loginWithGoogle() async {
     await _ensureGoogleInitialized();
 
@@ -139,17 +140,18 @@ class AuthRepository {
       throw AuthFailureException('Неизвестная ошибка Google Sign-In: $e');
     }
 
-    final authorization = await googleUser.authorizationClient
-        .authorizationForScopes(['email', 'profile']);
+    // В v7.x idToken живёт здесь, а не в authorizationClient
+    final auth = await googleUser.authentication;
+    final idToken = auth.idToken;
 
-    if (authorization == null) {
-      throw const AuthFailureException('Не удалось получить токен Google');
+    debugPrint('Google idToken: ${idToken != null ? '${idToken.substring(0, 20)}...' : 'NULL'}');
+
+    if (idToken == null) {
+      throw const AuthFailureException('Не удалось получить id_token от Google');
     }
 
     try {
-      final data = await _api.googleAuth({
-        'access_token': authorization.accessToken,
-      });
+      final data = await _api.googleAuth({'id_token': idToken});
       debugPrint('Google auth response keys: ${data.keys.toList()}');
       await _saveTokens(data);
 
@@ -221,3 +223,4 @@ class AuthRepository {
         _ => 'Что-то пошло не так (${e.statusCode})',
       };
 }
+
