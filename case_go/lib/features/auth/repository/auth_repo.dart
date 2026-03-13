@@ -9,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthRepository {
   final AuthApi _api;
   final StorageService _storage;
-  static const _webClientId = '507429813406-968aiglclt851uq61tvrse55b16889h1.apps.googleusercontent.com';
+  static const _webClientId = '507429813406-cp3kvojsh2vmp1d0j658m621pe0fp0ng.apps.googleusercontent.com';
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleInitialized = false;
 
