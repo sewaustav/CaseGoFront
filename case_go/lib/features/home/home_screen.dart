@@ -1,5 +1,6 @@
 import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/features/home/home_bloc.dart';
+import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -12,13 +13,18 @@ class HomeScreen extends StatelessWidget {
     final palette =
         Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
 
-    // BlocListener следит за HomeBloc:
-    // как только стал Unauthenticated — роутер сам сделает редирект,
-    // но на случай logout вручную — дополнительно навигируем на /auth.
     return BlocListener<HomeBloc, HomeState>(
       listener: (context, state) {
         if (state is Unauthenticated) {
           context.go('/auth');
+        }
+        // Если при восстановлении сессии обнаружили что профиль не заполнен —
+        // роутер сам сделает редирект через redirect callback, но на всякий случай
+        if (state is AuthenticatedNeedsProfile) {
+          context.go(
+            '/profile/setup',
+            extra: const ProfileSetupExtra(mode: ProfileSetupMode.create),
+          );
         }
       },
       child: Scaffold(
@@ -30,6 +36,10 @@ class HomeScreen extends StatelessWidget {
                 _buildAppBar(context, palette),
                 SliverToBoxAdapter(
                   child: _buildActionGrid(context, palette),
+                ),
+                // ── Приветствие ────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: _buildWelcomeBanner(context, palette),
                 ),
                 SliverPadding(
                   padding: const EdgeInsets.only(bottom: 100),
@@ -46,6 +56,44 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildWelcomeBanner(BuildContext context, AppPalette palette) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        // Показываем только авторизованным
+        if (state is! Authenticated) return const SizedBox.shrink();
+
+        final username = state.user['username'] as String? ??
+            state.user['email'] as String? ??
+            'друг';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w300,
+                color: palette.contrastBg.withOpacity(0.55),
+                height: 1.3,
+              ),
+              children: [
+                const TextSpan(text: 'Добро пожаловать,\n'),
+                TextSpan(
+                  text: username,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: palette.contrastBg,
+                    fontSize: 26,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -134,7 +182,8 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.arrow_upward, color: palette.contrastBg, size: 32),
+                    Icon(Icons.arrow_upward,
+                        color: palette.contrastBg, size: 32),
                     Text(
                       'Начать\nтренировку',
                       style: TextStyle(
@@ -231,7 +280,8 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {},
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: palette.altBtn,
                 borderRadius: BorderRadius.circular(20),
@@ -251,7 +301,8 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: Icon(Icons.question_answer_outlined, color: palette.background),
+              icon: Icon(Icons.question_answer_outlined,
+                  color: palette.background),
               onPressed: () {},
             ),
           ],

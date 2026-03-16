@@ -18,13 +18,16 @@ final class AuthLoading extends AuthState {
 
 /// Аутентификация прошла успешно.
 ///
-/// [isNewUser] = true → только что зарегистрировался → ведём на /profile/setup
-/// [isNewUser] = false → вошёл в существующий аккаунт → ведём на главную
+/// [needsProfileSetup] = true → профиль не заполнен → редирект на /profile/setup.
+/// Работает для логина, регистрации и Google Sign-In одинаково.
 final class AuthAuthenticated extends AuthState {
   final AuthUser user;
-  final bool isNewUser;
+  final bool needsProfileSetup;
 
-  const AuthAuthenticated({required this.user, this.isNewUser = false});
+  const AuthAuthenticated({
+    required this.user,
+    this.needsProfileSetup = false,
+  });
 }
 
 final class AuthError extends AuthState {

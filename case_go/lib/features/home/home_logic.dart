@@ -1,42 +1,24 @@
-import 'package:case_go/core/api/api.dart';
-import 'package:case_go/core/storage/storage.dart';
+import 'package:case_go/features/auth/repository/auth_repo.dart';
 
 class HomeRepository {
-  final AuthApi _api;
-  final StorageService _storage;
+  final AuthRepository _authRepository;
 
-  HomeRepository(this._api, this._storage);
+  HomeRepository(this._authRepository);
 
-  Future<Map<String, dynamic>?> checkAuth() async {
-    final token = await _storage.getAccessToken();
-    if (token == null) return null;
+  /// Проверяет сессию при старте приложения.
+  ///
+  /// Возвращает:
+  /// - (user, needsProfileSetup) если есть токен
+  /// - null если пользователь не авторизован
+  Future<(Map<String, dynamic>, bool)?> checkAuth() async {
+    final result = await _authRepository.restoreSession();
+    if (result == null) return null;
 
-    try {
-      return await _api.getMe();
-    } on Exception catch (e) {
-      if (e.toString().contains('401')) {
-        return await _handleRefreshToken();
-      }
-      rethrow;
-    }
+    final (user, needsSetup) = result;
+    return ({'id': user.id, 'email': user.email, 'username': user.name}, needsSetup);
   }
 
   Future<void> logout() async {
-    await _storage.clearAll();
-  }
-
-  Future<Map<String, dynamic>?> _handleRefreshToken() async {
-    final refresh = await _storage.getRefreshToken();
-    if (refresh == null) return null;
-
-    try {
-      final response = await _api.refreshToken({'refresh': refresh});
-      final newAccess = response['access'] as String;
-      await _storage.setAccessToken(newAccess);
-      return await _api.getMe();
-    } catch (_) {
-      await _storage.clearAll();
-      return null;
-    }
+    await _authRepository.logout();
   }
 }

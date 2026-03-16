@@ -29,18 +29,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       LoginSubmitted event, Emitter<AuthState> emit) async {
     emit(AuthLoading(mode: _mode));
     try {
-      final user = await _repository.login(
+      final (user, needsSetup) = await _repository.login(
         email: event.email,
         password: event.password,
       );
-      // Вход в существующий аккаунт — isNewUser = false → идём на главную
-      emit(AuthAuthenticated(user: user, isNewUser: false));
+      emit(AuthAuthenticated(user: user, needsProfileSetup: needsSetup));
     } on AuthCancelledException {
       emit(AuthIdle(mode: _mode));
     } on AuthFailureException catch (e) {
       emit(AuthError(message: e.message, mode: _mode));
     } catch (e, st) {
-      debugPrint('AuthBloc error: $e\n$st');
+      debugPrint('AuthBloc._onLogin error: $e\n$st');
       emit(AuthError(message: 'Ошибка: $e', mode: _mode));
     }
   }
@@ -49,17 +48,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       RegisterSubmitted event, Emitter<AuthState> emit) async {
     emit(AuthLoading(mode: _mode));
     try {
-      final user = await _repository.register(
+      final (user, needsSetup) = await _repository.register(
         name: event.name,
         email: event.email,
         password: event.password,
       );
-      // Новый пользователь — isNewUser = true → идём заполнять профиль
-      emit(AuthAuthenticated(user: user, isNewUser: true));
+      emit(AuthAuthenticated(user: user, needsProfileSetup: needsSetup));
     } on AuthFailureException catch (e) {
       emit(AuthError(message: e.message, mode: _mode));
-    } catch (_) {
-      emit(AuthError(message: 'Неизвестная ошибка', mode: _mode));
+    } catch (e) {
+      emit(AuthError(message: 'Неизвестная ошибка: $e', mode: _mode));
     }
   }
 
@@ -67,17 +65,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       GoogleSignInRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading(mode: _mode));
     try {
-      final user = await _repository.loginWithGoogle();
-      // Google Sign-In — редиректа нет (по ТЗ), просто остаёмся / обновляем стейт.
-      // isNewUser = false, экран сам не делает go('/') — HomeBloc обновится
-      // через AppStarted и роутер сделает редирект если нужно.
-      emit(AuthAuthenticated(user: user, isNewUser: false));
+      final (user, needsSetup) = await _repository.loginWithGoogle();
+      emit(AuthAuthenticated(user: user, needsProfileSetup: needsSetup));
     } on AuthCancelledException {
       emit(AuthIdle(mode: _mode));
     } on AuthFailureException catch (e) {
       emit(AuthError(message: e.message, mode: _mode));
-    } catch (_) {
-      emit(AuthError(message: 'Неизвестная ошибка', mode: _mode));
+    } catch (e) {
+      emit(AuthError(message: 'Неизвестная ошибка: $e', mode: _mode));
     }
   }
 

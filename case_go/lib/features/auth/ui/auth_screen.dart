@@ -43,12 +43,9 @@ class _AuthViewState extends State<_AuthView> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          // Обновляем HomeBloc
           context.read<HomeBloc>().add(AppStarted());
 
-          // После входа (логин) → главная
-          // После регистрации → форма заполнения профиля
-          if (state.isNewUser) {
+          if (state.needsProfileSetup) {
             context.go(
               '/profile/setup',
               extra: const ProfileSetupExtra(mode: ProfileSetupMode.create),

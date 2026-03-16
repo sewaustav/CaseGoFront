@@ -1,4 +1,3 @@
-import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/profile/profile.dart';
 import 'package:case_go/core/storage/storage.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
@@ -31,21 +30,27 @@ class AppRouter {
     //
     redirect: (context, state) {
       final homeBloc = context.read<HomeBloc>();
-      final isAuthenticated = homeBloc.state is Authenticated;
       final isLoading = homeBloc.state is HomeLoading;
-
-      // Пока определяем состояние — не редиректим
       if (isLoading) return null;
 
+      final isAuthenticated = homeBloc.state is Authenticated;
+      final needsProfile = homeBloc.state is AuthenticatedNeedsProfile;
       final location = state.matchedLocation;
 
-      // Авторизованный пытается попасть на /auth — отправляем на главную
-      if (isAuthenticated && location == '/auth') return '/';
-
-      // Неавторизованный пытается попасть на /profile/setup — отправляем на /auth
-      if (!isAuthenticated && location.startsWith('/profile/setup')) {
-        return '/auth';
+      // Уже на странице заполнения профиля — не редиректим
+      if (location.startsWith('/profile/setup')) {
+        // Если вдруг зашёл неавторизованный
+        if (!isAuthenticated && !needsProfile) return '/auth';
+        return null;
       }
+
+      // Нужно заполнить профиль — редирект
+      if (needsProfile) {
+        return '/profile/setup';
+      }
+
+      // Авторизованный на /auth — на главную
+      if (isAuthenticated && location == '/auth') return '/';
 
       return null;
     },
@@ -61,12 +66,7 @@ class AppRouter {
         path: '/auth',
         name: 'auth',
         builder: (context, state) => BlocProvider(
-          create: (_) => AuthBloc(
-            AuthRepository(
-              api: GetIt.I<AuthApi>(),
-              storage: GetIt.I<StorageService>(),
-            ),
-          ),
+          create: (_) => AuthBloc(GetIt.I<AuthRepository>()),
           child: const AuthScreen(),
         ),
       ),

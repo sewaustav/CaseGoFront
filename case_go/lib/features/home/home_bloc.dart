@@ -1,46 +1,67 @@
 import 'package:case_go/features/home/home_logic.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// --- События ---
+// ── События ───────────────────────────────────────────────────────────────────
+
 abstract class HomeEvent {}
 
 class AppStarted extends HomeEvent {}
 
 class LogoutRequested extends HomeEvent {}
 
-// --- Состояния ---
+// ── Состояния ─────────────────────────────────────────────────────────────────
+
 abstract class HomeState {}
 
 class HomeLoading extends HomeState {}
 
+/// Авторизован и профиль заполнен — всё в порядке.
 class Authenticated extends HomeState {
   final Map<String, dynamic> user;
   Authenticated(this.user);
 }
 
+/// Авторизован, но профиль ещё не заполнен.
+/// Роутер/экран должен сделать редирект на /profile/setup.
+class AuthenticatedNeedsProfile extends HomeState {
+  final Map<String, dynamic> user;
+  AuthenticatedNeedsProfile(this.user);
+}
+
 class Unauthenticated extends HomeState {}
 
-// --- Блок ---
+// ── Блок ──────────────────────────────────────────────────────────────────────
+
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final HomeRepository repository;
 
   HomeBloc(this.repository) : super(HomeLoading()) {
-    on<AppStarted>((event, emit) async {
-      try {
-        final user = await repository.checkAuth();
-        if (user != null) {
-          emit(Authenticated(user));
-        } else {
-          emit(Unauthenticated());
-        }
-      } catch (e) {
-        emit(Unauthenticated());
-      }
-    });
+    on<AppStarted>(_onAppStarted);
+    on<LogoutRequested>(_onLogout);
+  }
 
-    on<LogoutRequested>((event, emit) async {
-      await repository.logout();
+  Future<void> _onAppStarted(
+      AppStarted event, Emitter<HomeState> emit) async {
+    try {
+      final result = await repository.checkAuth();
+      if (result == null) {
+        emit(Unauthenticated());
+        return;
+      }
+      final (user, needsSetup) = result;
+      if (needsSetup) {
+        emit(AuthenticatedNeedsProfile(user));
+      } else {
+        emit(Authenticated(user));
+      }
+    } catch (_) {
       emit(Unauthenticated());
-    });
+    }
+  }
+
+  Future<void> _onLogout(
+      LogoutRequested event, Emitter<HomeState> emit) async {
+    await repository.logout();
+    emit(Unauthenticated());
   }
 }

@@ -1,7 +1,10 @@
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
+import 'package:case_go/core/api/profile/profile.dart';
+import 'package:case_go/core/api/profile/profile_api.dart';
 import 'package:case_go/core/routing/router.dart';
 import 'package:case_go/core/theme/app_palete.dart';
+import 'package:case_go/features/auth/repository/auth_repo.dart';
 import 'package:case_go/features/home/home_bloc.dart';
 import 'package:case_go/core/storage/storage.dart';
 import 'package:case_go/features/home/home_logic.dart';
@@ -12,32 +15,38 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Создаём и инициализируем storage ПЕРВЫМ
   final storage = StorageService();
   await storage.init();
 
   final getIt = GetIt.I;
 
-  // 2. Регистрируем ОДИН инстанс storage
   getIt.registerSingleton<StorageService>(storage);
 
-  // 3. AuthApiImpl получает замыкание на ТОТ ЖЕ объект storage
-  //    () => storage.accessTokenSync — читает _cachedAccessToken напрямую
-  //    После _saveTokens() кеш уже обновлён → getMe() получит свежий токен
   getIt.registerSingleton<AuthApi>(
     AuthApiImpl(
-      baseUrl: 'http://localhost:8000/api/v1/auth', // 10.0.2.2 для Android эмулятора
-      // baseUrl: 'http://localhost:8000/api/v1/auth', // для iOS симулятора / веба
+      baseUrl: 'http://localhost:8000/api/v1/auth',
       accessTokenProvider: () => storage.accessTokenSync,
-      // usersBaseUrl автоматически = 'http://10.0.2.2:8000/api/v1/users'
+    ),
+  );
+
+  getIt.registerSingleton<ProfileApi>(
+    ProfileApiImpl(
+      baseUrl: 'http://localhost:8080/profile/api/v1',
+      accessTokenProvider: () => storage.accessTokenSync ?? '',
+    ),
+  );
+
+  // AuthRepository теперь знает и об auth, и о profile (для проверки наличия профиля)
+  getIt.registerSingleton<AuthRepository>(
+    AuthRepository(
+      api: getIt<AuthApi>(),
+      profileApi: getIt<ProfileApi>(),
+      storage: getIt<StorageService>(),
     ),
   );
 
   getIt.registerSingleton<HomeRepository>(
-    HomeRepository(
-      getIt<AuthApi>(),
-      getIt<StorageService>(), // тот же инстанс что и выше
-    ),
+    HomeRepository(getIt<AuthRepository>()),
   );
 
   runApp(const CaseGo());
@@ -59,11 +68,10 @@ class CaseGo extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           scaffoldBackgroundColor: AppPalette.defaultPalette.background,
-          extensions: const [
-            AppPalette.defaultPalette,
-          ],
+          extensions: const [AppPalette.defaultPalette],
         ),
       ),
     );
   }
 }
+
