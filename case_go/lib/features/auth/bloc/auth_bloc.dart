@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// Импортируем AuthUser здесь — файлы-части (part) наследуют все импорты
-// главного файла, поэтому auth_state.dart увидит AuthUser без своего импорта.
 import 'package:case_go/features/auth/models/auth_user.dart';
 import 'package:case_go/features/auth/models/auth_exception.dart';
 import 'package:case_go/features/auth/repository/auth_repo.dart';
@@ -20,16 +18,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthModeToggled>(_onModeToggled);
   }
 
-  // ── Текущий режим формы ───────────────────────────────────
-
   AuthMode get _mode => switch (state) {
         AuthIdle(:final mode) => mode,
         AuthLoading(:final mode) => mode,
         AuthError(:final mode) => mode,
         _ => AuthMode.login,
       };
-
-  // ── Обработчики ───────────────────────────────────────────
 
   Future<void> _onLogin(
       LoginSubmitted event, Emitter<AuthState> emit) async {
@@ -39,7 +33,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
       );
-      emit(AuthAuthenticated(user: user));
+      // Вход в существующий аккаунт — isNewUser = false → идём на главную
+      emit(AuthAuthenticated(user: user, isNewUser: false));
     } on AuthCancelledException {
       emit(AuthIdle(mode: _mode));
     } on AuthFailureException catch (e) {
@@ -59,7 +54,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
       );
-      emit(AuthAuthenticated(user: user));
+      // Новый пользователь — isNewUser = true → идём заполнять профиль
+      emit(AuthAuthenticated(user: user, isNewUser: true));
     } on AuthFailureException catch (e) {
       emit(AuthError(message: e.message, mode: _mode));
     } catch (_) {
@@ -72,7 +68,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading(mode: _mode));
     try {
       final user = await _repository.loginWithGoogle();
-      emit(AuthAuthenticated(user: user));
+      // Google Sign-In — редиректа нет (по ТЗ), просто остаёмся / обновляем стейт.
+      // isNewUser = false, экран сам не делает go('/') — HomeBloc обновится
+      // через AppStarted и роутер сделает редирект если нужно.
+      emit(AuthAuthenticated(user: user, isNewUser: false));
     } on AuthCancelledException {
       emit(AuthIdle(mode: _mode));
     } on AuthFailureException catch (e) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
 import 'package:case_go/features/home/home_bloc.dart';
+import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 
 class AuthScreen extends StatelessWidget {
   const AuthScreen({super.key});
@@ -42,10 +43,19 @@ class _AuthViewState extends State<_AuthView> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          // Сообщаем HomeBloc что пользователь вошёл — он обновит своё состояние
+          // Обновляем HomeBloc
           context.read<HomeBloc>().add(AppStarted());
-          // Переходим на главную
-          context.go('/');
+
+          // После входа (логин) → главная
+          // После регистрации → форма заполнения профиля
+          if (state.isNewUser) {
+            context.go(
+              '/profile/setup',
+              extra: const ProfileSetupExtra(mode: ProfileSetupMode.create),
+            );
+          } else {
+            context.go('/');
+          }
         }
         if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -67,6 +77,16 @@ class _AuthViewState extends State<_AuthView> {
 
         return Scaffold(
           backgroundColor: palette.background,
+          appBar: AppBar(
+            backgroundColor: palette.background,
+            elevation: 0,
+            // Позволяем вернуться на главную — пользователь мог прийти
+            // сюда добровольно (не из принудительного редиректа)
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: palette.contrastBg),
+              onPressed: () => context.go('/'),
+            ),
+          ),
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -124,7 +144,8 @@ class _AuthViewState extends State<_AuthView> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : () => _submit(context, isLogin),
+                      onPressed:
+                          isLoading ? null : () => _submit(context, isLogin),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: palette.altBtn,
                         foregroundColor: palette.contrastBg,
@@ -184,8 +205,8 @@ class _AuthViewState extends State<_AuthView> {
                       isLogin
                           ? 'Нет аккаунта? Зарегистрироваться'
                           : 'Уже есть аккаунт? Войти',
-                      style: TextStyle(
-                          color: palette.contrastBg.withOpacity(0.7)),
+                      style:
+                          TextStyle(color: palette.contrastBg.withOpacity(0.7)),
                     ),
                   ),
                 ],
@@ -229,13 +250,11 @@ class _AuthViewState extends State<_AuthView> {
         prefixIcon: Icon(icon, color: palette.contrastBg.withOpacity(0.5)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide:
-              BorderSide(color: palette.contrastBg.withOpacity(0.2)),
+          borderSide: BorderSide(color: palette.contrastBg.withOpacity(0.2)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide:
-              BorderSide(color: palette.contrastBg.withOpacity(0.15)),
+          borderSide: BorderSide(color: palette.contrastBg.withOpacity(0.15)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

@@ -1,115 +1,48 @@
 import 'dart:async';
 
-/// Абстрактный класс, описывающий API управления профилем пользователя.
-///
-/// Покрывает следующие эндпоинты:
-/// - POST   /profile
-/// - GET    /profile
-/// - PUT    /profile
-/// - PATCH  /profile
-/// - DELETE /profile
-/// - POST   /social
-/// - PUT    /social/{id}
-/// - DELETE /social/{id}
-/// - POST   /purpose
-/// - PUT    /purpose/{id}
-/// - DELETE /purpose/{id}
-/// - POST   /profession
-/// - GET    /profession
-/// - PUT    /profession/{id}
-/// - DELETE /profession/{id}
-/// - GET    /profession_categories
-/// - GET    /search
-/// - GET    /search/fio
 abstract class ProfileApi {
-  // ──────────────────────────────────────────
-  // Профиль
-  // ──────────────────────────────────────────
-
-  /// Создаёт профиль текущего пользователя.
+  /// POST /profile — создать профиль (после регистрации)
   Future<Map<String, dynamic>> createProfile(Map<String, dynamic> body);
 
-  /// Возвращает профиль текущего пользователя.
+  /// GET /profile — получить свой профиль
   Future<Map<String, dynamic>> getProfile();
 
-  /// Полностью заменяет профиль текущего пользователя.
+  /// PUT /profile — полное обновление профиля
   Future<Map<String, dynamic>> replaceProfile(Map<String, dynamic> body);
 
-  /// Частично обновляет профиль текущего пользователя.
+  /// PATCH /profile — частичное обновление профиля
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body);
 
-  /// Удаляет профиль текущего пользователя.
+  /// DELETE /profile — мягкое удаление
   Future<void> deleteProfile();
 
-  // ──────────────────────────────────────────
-  // Социальные ссылки
-  // ──────────────────────────────────────────
-
-  /// Добавляет социальную ссылку.
+  /// POST /profile/social — добавить соцсети
   Future<Map<String, dynamic>> createSocialLink(Map<String, dynamic> body);
 
-  /// Полностью заменяет социальную ссылку по [id].
-  Future<Map<String, dynamic>> replaceSocialLink(
-    int id,
-    Map<String, dynamic> body,
-  );
+  /// PUT /profile/social/{id}
+  Future<Map<String, dynamic>> replaceSocialLink(int id, Map<String, dynamic> body);
 
-  /// Удаляет социальную ссылку по [id].
+  /// DELETE /profile/social/{id}
   Future<void> deleteSocialLink(int id);
 
-  // ──────────────────────────────────────────
-  // Цели пользователя
-  // ──────────────────────────────────────────
-
-  /// Добавляет цель пользователя.
+  /// POST /profile/purpose — добавить цели
   Future<Map<String, dynamic>> createPurpose(Map<String, dynamic> body);
 
-  /// Полностью заменяет цель пользователя по [id].
-  Future<Map<String, dynamic>> replacePurpose(
-    int id,
-    Map<String, dynamic> body,
-  );
+  /// PUT /profile/purpose/{id}
+  Future<Map<String, dynamic>> replacePurpose(int id, Map<String, dynamic> body);
 
-  /// Удаляет цель пользователя по [id].
+  /// DELETE /profile/purpose/{id}
   Future<void> deletePurpose(int id);
 
-  // ──────────────────────────────────────────
-  // Профессии
-  // ──────────────────────────────────────────
-
-  /// Добавляет профессию для поиска.
+  /// POST /profession
   Future<Map<String, dynamic>> createProfession(Map<String, dynamic> body);
 
-  /// Возвращает список профессий текущего пользователя.
+  /// GET /profession
   Future<List<Map<String, dynamic>>> getProfessions();
 
-  /// Полностью заменяет профессию по [id].
-  Future<Map<String, dynamic>> replaceProfession(
-    int id,
-    Map<String, dynamic> body,
-  );
+  /// PUT /profession/{id}
+  Future<Map<String, dynamic>> replaceProfession(int id, Map<String, dynamic> body);
 
-  /// Удаляет профессию по [id].
+  /// DELETE /profession/{id}
   Future<void> deleteProfession(int id);
-
-  // ──────────────────────────────────────────
-  // Категории профессий
-  // ──────────────────────────────────────────
-
-  /// Возвращает список категорий профессий.
-  Future<List<Map<String, dynamic>>> getProfessionCategories();
-
-  // ──────────────────────────────────────────
-  // Поиск
-  // ──────────────────────────────────────────
-
-  /// Выполняет поиск пользователей по произвольным параметрам.
-  ///
-  /// [queryParams] — набор фильтров (например, `city`, `profession` и т.д.).
-  Future<List<Map<String, dynamic>>> search(Map<String, String> queryParams);
-
-  /// Выполняет поиск пользователей по ФИО.
-  ///
-  /// [fio] — строка с именем или его частью.
-  Future<List<Map<String, dynamic>>> searchByFio(String fio);
 }
