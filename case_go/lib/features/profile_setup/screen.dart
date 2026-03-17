@@ -1,9 +1,11 @@
+import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:case_go/core/theme/app_palete.dart';
+import 'package:case_go/features/home/home_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:case_go/features/profile_setup/profile_setup_repository.dart';
@@ -88,6 +90,8 @@ class _ProfileSetupViewState extends State<_ProfileSetupView> {
         .map((e) => SocialLinkData(type: e.selectedType!, url: e.urlCtrl.text.trim()))
         .toList();
 
+    dev.log('📝 ProfileSetupScreen: submitting form', name: 'ProfileSetup');
+
     context.read<ProfileSetupBloc>().add(
           ProfileSetupSubmitted(
             mode: widget.mode,
@@ -98,7 +102,9 @@ class _ProfileSetupViewState extends State<_ProfileSetupView> {
               patronymic: _patronymicCtrl.text.trim().isEmpty
                   ? null
                   : _patronymicCtrl.text.trim(),
-              city: _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
+              city: _cityCtrl.text.trim().isEmpty
+                  ? null
+                  : _cityCtrl.text.trim(),
               age: int.tryParse(_ageCtrl.text.trim()),
               sex: _selectedSex,
               description: _descriptionCtrl.text.trim(),
@@ -120,8 +126,20 @@ class _ProfileSetupViewState extends State<_ProfileSetupView> {
 
     return BlocConsumer<ProfileSetupBloc, ProfileSetupState>(
       listener: (context, state) {
-        if (state is ProfileSetupSuccess) context.go('/');
+        dev.log('👂 ProfileSetupScreen listener: state=${state.runtimeType}', name: 'ProfileSetup');
+
+        if (state is ProfileSetupSuccess) {
+          dev.log('✅ ProfileSetupSuccess caught in listener → dispatching ProfileSetupCompleted to HomeBloc', name: 'ProfileSetup');
+          // Меняем состояние HomeBloc: AuthenticatedNeedsProfile → Authenticated.
+          // GoRouter подписан на HomeBloc через refreshListenable и автоматически
+          // пересчитает redirect — needsProfile станет false и редиректа не будет.
+          context.read<HomeBloc>().add(ProfileSetupCompleted());
+          dev.log('✅ ProfileSetupCompleted dispatched, navigating to /', name: 'ProfileSetup');
+          context.go('/');
+        }
+
         if (state is ProfileSetupError) {
+          dev.log('❌ ProfileSetupError: ${state.message}', name: 'ProfileSetup');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -408,9 +426,12 @@ class _MainInfoTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 8),
-        _FieldRow(label: 'Никнейм', palette: palette,
+        _FieldRow(
+          label: 'Никнейм',
+          palette: palette,
           child: _InlineField(
-            controller: usernameCtrl, palette: palette,
+            controller: usernameCtrl,
+            palette: palette,
             hint: 'от 3 до 30 символов',
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Обязательное поле';
@@ -428,9 +449,12 @@ class _MainInfoTab extends StatelessWidget {
           child: _InlineField(controller: patronymicCtrl, palette: palette, hint: 'необязательно')),
         _FieldRow(label: 'Город', palette: palette,
           child: _InlineField(controller: cityCtrl, palette: palette, hint: 'необязательно')),
-        _FieldRow(label: 'Возраст', palette: palette,
+        _FieldRow(
+          label: 'Возраст',
+          palette: palette,
           child: _InlineField(
-            controller: ageCtrl, palette: palette,
+            controller: ageCtrl,
+            palette: palette,
             hint: '14–120',
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -448,8 +472,11 @@ class _MainInfoTab extends StatelessWidget {
           child: _InlineField(controller: professionCtrl, palette: palette, hint: 'необязательно')),
         _FieldRow(label: 'О себе', palette: palette, isLast: true,
           child: _InlineField(
-            controller: descriptionCtrl, palette: palette,
-            hint: 'до 500 символов', maxLines: 3, maxLength: 500,
+            controller: descriptionCtrl,
+            palette: palette,
+            hint: 'до 500 символов',
+            maxLines: 3,
+            maxLength: 500,
           ),
         ),
       ],
@@ -490,17 +517,20 @@ class _PurposesTab extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 28, height: 28,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
                     color: palette.primaryBtn.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Text('${i + 1}',
-                        style: TextStyle(
-                            color: palette.primaryBtn,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13)),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                          color: palette.primaryBtn,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -668,7 +698,8 @@ class _BottomSaveBar extends StatelessWidget {
           ),
           child: isLoading
               ? SizedBox(
-                  height: 20, width: 20,
+                  height: 20,
+                  width: 20,
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: palette.contrastBg))
               : Text(label,
@@ -679,7 +710,7 @@ class _BottomSaveBar extends StatelessWidget {
   }
 }
 
-// ── Field row (label left + input right, like mockup) ─────────────────────────
+// ── Field row ─────────────────────────────────────────────────────────────────
 
 class _FieldRow extends StatelessWidget {
   final String label;
@@ -718,13 +749,16 @@ class _FieldRow extends StatelessWidget {
           ),
         ),
         if (!isLast)
-          Divider(height: 1, thickness: 1, color: palette.contrastBg.withOpacity(0.07)),
+          Divider(
+              height: 1,
+              thickness: 1,
+              color: palette.contrastBg.withOpacity(0.07)),
       ],
     );
   }
 }
 
-// ── Inline text field (right-aligned, no border) ──────────────────────────────
+// ── Inline text field ─────────────────────────────────────────────────────────
 
 class _InlineField extends StatelessWidget {
   final TextEditingController controller;
@@ -763,7 +797,8 @@ class _InlineField extends StatelessWidget {
       style: TextStyle(color: palette.contrastBg, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: palette.contrastBg.withOpacity(0.3), fontSize: 14),
+        hintStyle:
+            TextStyle(color: palette.contrastBg.withOpacity(0.3), fontSize: 14),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
@@ -841,13 +876,17 @@ class _Chip extends StatelessWidget {
           color: isSelected ? palette.altBtn : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? palette.altBtn : palette.contrastBg.withOpacity(0.2),
+            color: isSelected
+                ? palette.altBtn
+                : palette.contrastBg.withOpacity(0.2),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? palette.contrastBg : palette.contrastBg.withOpacity(0.55),
+            color: isSelected
+                ? palette.contrastBg
+                : palette.contrastBg.withOpacity(0.55),
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             fontSize: 13,
           ),
@@ -868,7 +907,8 @@ InputDecoration _inputDeco(AppPalette palette, String label, [String? hint]) {
   return InputDecoration(
     labelText: label,
     hintText: hint,
-    hintStyle: TextStyle(color: palette.contrastBg.withOpacity(0.35), fontSize: 13),
+    hintStyle:
+        TextStyle(color: palette.contrastBg.withOpacity(0.35), fontSize: 13),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: palette.contrastBg.withOpacity(0.15)),

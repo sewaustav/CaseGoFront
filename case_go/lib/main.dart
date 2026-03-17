@@ -36,7 +36,6 @@ void main() async {
     ),
   );
 
-  // AuthRepository теперь знает и об auth, и о profile (для проверки наличия профиля)
   getIt.registerSingleton<AuthRepository>(
     AuthRepository(
       api: getIt<AuthApi>(),
@@ -49,22 +48,26 @@ void main() async {
     HomeRepository(getIt<AuthRepository>()),
   );
 
-  runApp(const CaseGo());
+  // HomeBloc создаём ДО роутера — роутер подписывается на него через refreshListenable
+  final homeBloc = HomeBloc(getIt<HomeRepository>())..add(AppStarted());
+
+  runApp(CaseGo(homeBloc: homeBloc));
 }
 
 class CaseGo extends StatelessWidget {
-  const CaseGo({super.key});
+  final HomeBloc homeBloc;
+
+  const CaseGo({super.key, required this.homeBloc});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => HomeBloc(
-        GetIt.I<HomeRepository>(),
-      )..add(AppStarted()),
+    return BlocProvider.value(
+      value: homeBloc,
       child: MaterialApp.router(
         title: 'CaseGo',
         debugShowCheckedModeBanner: false,
-        routerConfig: AppRouter.router,
+        // Роутер получает homeBloc и подписывается на его изменения
+        routerConfig: AppRouter.createRouter(homeBloc),
         theme: ThemeData(
           useMaterial3: true,
           scaffoldBackgroundColor: AppPalette.defaultPalette.background,
@@ -74,4 +77,3 @@ class CaseGo extends StatelessWidget {
     );
   }
 }
-

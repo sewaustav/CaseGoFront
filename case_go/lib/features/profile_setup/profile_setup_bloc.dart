@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:case_go/features/profile_setup/profile_setup_repository.dart';
@@ -42,11 +43,15 @@ class ProfileSetupBloc
     ProfileSetupSubmitted event,
     Emitter<ProfileSetupState> emit,
   ) async {
+    dev.log('📤 ProfileSetupBloc: submit started, mode=${event.mode}', name: 'ProfileSetup');
     emit(ProfileSetupLoading());
     try {
       await _repository.submit(mode: event.mode, data: event.data);
+      dev.log('✅ ProfileSetupBloc: submit SUCCESS → emitting ProfileSetupSuccess', name: 'ProfileSetup');
       emit(ProfileSetupSuccess());
-    } catch (e) {
+      dev.log('✅ ProfileSetupBloc: ProfileSetupSuccess emitted', name: 'ProfileSetup');
+    } catch (e, st) {
+      dev.log('❌ ProfileSetupBloc: submit FAILED: $e\n$st', name: 'ProfileSetup');
       emit(ProfileSetupError('Ошибка: $e'));
     }
   }
