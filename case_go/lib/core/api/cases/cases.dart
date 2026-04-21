@@ -1,81 +1,35 @@
-import 'dart:async';
+abstract class CaseGoApi {
+  Future<List<Map<String, dynamic>>> getCases({
+    int limit = 20,
+    int page = 1,
+    String? topic,
+    int? category,
+  });
 
-/// Абстрактный класс, описывающий API тренажёра (кейсы, история, аналитика).
-///
-/// Покрывает следующие эндпоинты:
-/// - POST   /cases              — загрузка кейса (creator / admin)
-/// - GET    /cases              — список кейсов с пагинацией
-/// - PATCH  /cases/{id}        — частичное обновление кейса (creator / admin)
-/// - DELETE /cases/{id}        — удаление кейса (creator / admin)
-/// - POST   /cases/{id}        — отправка результатов кейса
-/// - GET    /cases/{id}        — получение кейса
-/// - GET    /history           — история ответов
-/// - GET    /history/{id}      — история одного кейса (с проверкой прав)
-/// - GET    /analytics         — аналитика (структура уточняется)
-abstract class TrainerApi {
-  // ──────────────────────────────────────────
-  // Кейсы — коллекция (/cases)
-  // ──────────────────────────────────────────
+  Future<Map<String, dynamic>> getCaseById(int caseId);
 
-  /// Загружает новый кейс.
-  ///
-  /// Доступно только пользователям с ролью `creator` или `admin`.
-  /// [body] — данные кейса.
-  Future<Map<String, dynamic>> createCase(Map<String, dynamic> body);
+  /// Starts a dialog for the given case.
+  /// Returns CaseDto {dialog_id, question, model, step}.
+  Future<Map<String, dynamic>> startCase(int caseId);
 
-  /// Возвращает постраничный список кейсов.
-  ///
-  /// [page] и [pageSize] используются для пагинации на уровне клиента.
-  /// Если бэкенд использует фиксированную пагинацию, параметры могут
-  /// быть проигнорированы.
-  Future<Map<String, dynamic>> getCases({int page = 1, int pageSize = 20});
-
-  /// Частично обновляет кейс с [id].
-  ///
-  /// Доступно только пользователям с ролью `creator` или `admin`.
-  Future<Map<String, dynamic>> patchCase(
-    int id,
+  /// Sends an interaction step in a dialog.
+  /// Body: {dialog_id, step, question, answer}
+  /// Returns CaseDto with next question.
+  Future<Map<String, dynamic>> sendInteraction(
+    int dialogId,
     Map<String, dynamic> body,
   );
 
-  /// Удаляет кейс с [id].
-  ///
-  /// Доступно только пользователям с ролью `creator` или `admin`.
-  Future<void> deleteCase(int id);
+  /// Completes the dialog and returns Result.
+  Future<Map<String, dynamic>> completeDialog(int dialogId);
 
-  // ──────────────────────────────────────────
-  // Кейс — отдельный ресурс (/cases/{id})
-  // ──────────────────────────────────────────
+  /// Returns Conversation {dialog, interactions}.
+  Future<Map<String, dynamic>> getDialogById(int dialogId);
 
-  /// Возвращает кейс по [id].
-  Future<Map<String, dynamic>> getCase(int id);
-
-  /// Отправляет результаты прохождения кейса с [id].
-  ///
-  /// [body] — объект с ответами пользователя.
-  Future<Map<String, dynamic>> submitCaseResult(
-    int id,
-    Map<String, dynamic> body,
-  );
-
-  // ──────────────────────────────────────────
-  // История ответов (/history)
-  // ──────────────────────────────────────────
-
-  /// Возвращает историю всех ответов текущего пользователя.
-  ///
-  /// Если передан [caseId], возвращает историю только по этому кейсу.
-  /// Права: текущий пользователь видит только свои ответы;
-  /// администратор может видеть ответы любого пользователя.
-  Future<List<Map<String, dynamic>>> getHistory({int? caseId});
-
-  // ──────────────────────────────────────────
-  // Аналитика (/analytics)
-  // ──────────────────────────────────────────
-
-  /// Возвращает аналитические данные.
-  ///
-  /// Структура ответа уточняется на бэкенде; метод принимает
-  /// произвольные [queryParams] для фильтрации.
-  Future<Map<String, dynamic>> getAnalytics([Map<String, String>? queryParams]);
+  /// Returns list of user's dialogs.
+  Future<List<Map<String, dynamic>>> getUserDialogs(
+    int userId, {
+    int limit = 20,
+    int page = 1,
+  });
 }

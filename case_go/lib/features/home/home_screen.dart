@@ -18,8 +18,6 @@ class HomeScreen extends StatelessWidget {
         if (state is Unauthenticated) {
           context.go('/auth');
         }
-        // Если при восстановлении сессии обнаружили что профиль не заполнен —
-        // роутер сам сделает редирект через redirect callback, но на всякий случай
         if (state is AuthenticatedNeedsProfile) {
           context.go(
             '/profile/setup',
@@ -35,65 +33,24 @@ class HomeScreen extends StatelessWidget {
               slivers: [
                 _buildAppBar(context, palette),
                 SliverToBoxAdapter(
+                  child: _buildHeroSection(context, palette),
+                ),
+                SliverToBoxAdapter(
                   child: _buildActionGrid(context, palette),
                 ),
-                // ── Приветствие ────────────────────────────────────
                 SliverToBoxAdapter(
                   child: _buildWelcomeBanner(context, palette),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.only(bottom: 100),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildArticleCard(palette),
-                      childCount: 5,
-                    ),
-                  ),
+                SliverToBoxAdapter(
+                  child: _buildQuickActions(context, palette),
                 ),
+                const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
-            _buildFloatingBottomBar(palette),
+            _buildFloatingBottomBar(context, palette),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildWelcomeBanner(BuildContext context, AppPalette palette) {
-    return BlocBuilder<HomeBloc, HomeState>(
-      builder: (context, state) {
-        // Показываем только авторизованным
-        if (state is! Authenticated) return const SizedBox.shrink();
-
-        final username = state.user['username'] as String? ??
-            state.user['email'] as String? ??
-            'друг';
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-          child: RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w300,
-                color: palette.contrastBg.withOpacity(0.55),
-                height: 1.3,
-              ),
-              children: [
-                const TextSpan(text: 'Добро пожаловать,\n'),
-                TextSpan(
-                  text: username,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: palette.contrastBg,
-                    fontSize: 26,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -124,6 +81,10 @@ class HomeScreen extends StatelessWidget {
                     case 'login':
                     case 'reg':
                       context.push('/auth');
+                    case 'profile':
+                      context.push('/profile');
+                    case 'history':
+                      context.push('/history');
                     case 'logout':
                       context.read<HomeBloc>().add(LogoutRequested());
                   }
@@ -139,11 +100,27 @@ class HomeScreen extends StatelessWidget {
                     ? [
                         const PopupMenuItem(
                           value: 'profile',
-                          child: Text('Профиль'),
+                          child: Row(children: [
+                            Icon(Icons.person, size: 18),
+                            SizedBox(width: 8),
+                            Text('Профиль'),
+                          ]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'history',
+                          child: Row(children: [
+                            Icon(Icons.history, size: 18),
+                            SizedBox(width: 8),
+                            Text('История'),
+                          ]),
                         ),
                         const PopupMenuItem(
                           value: 'logout',
-                          child: Text('Выйти'),
+                          child: Row(children: [
+                            Icon(Icons.logout, size: 18),
+                            SizedBox(width: 8),
+                            Text('Выйти'),
+                          ]),
                         ),
                       ]
                     : [
@@ -164,65 +141,131 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildHeroSection(BuildContext context, AppPalette palette) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        if (state is! Authenticated) return const SizedBox.shrink();
+        final username = state.user['username'] as String? ??
+            state.user['email'] as String? ??
+            'друг';
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: palette.contrastBg,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Привет, $username 👋',
+                style: TextStyle(
+                  color: palette.background,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Готов прокачать soft skills?\nВыбери кейс и начни тренировку.',
+                style: TextStyle(
+                  color: palette.background.withOpacity(0.7),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => context.push('/cases'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: palette.altBtn,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Начать тренировку',
+                        style: TextStyle(
+                          color: palette.contrastBg,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_forward,
+                          color: palette.contrastBg, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWelcomeBanner(BuildContext context, AppPalette palette) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        if (state is Authenticated) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w300,
+                color: palette.contrastBg.withOpacity(0.55),
+                height: 1.3,
+              ),
+              children: const [
+                TextSpan(text: 'Добро пожаловать в\n'),
+                TextSpan(
+                  text: 'Case Go',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1D2323),
+                    fontSize: 26,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildActionGrid(BuildContext context, AppPalette palette) {
     return Padding(
-      padding: const EdgeInsets.all(10.0),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
         children: [
           Expanded(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: palette.altBtn,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(Icons.arrow_upward,
-                        color: palette.contrastBg, size: 32),
-                    Text(
-                      'Начать\nтренировку',
-                      style: TextStyle(
-                        color: palette.contrastBg,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            child: _ActionCard(
+              color: palette.altBtn,
+              icon: Icons.arrow_upward,
+              iconColor: palette.contrastBg,
+              label: 'Начать\nтренировку',
+              labelColor: palette.contrastBg,
+              onTap: () => context.push('/cases'),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: palette.contrastBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(Icons.tune, color: palette.background, size: 32),
-                    Text(
-                      'Подобрать по\nпараметрам',
-                      style: TextStyle(
-                        color: palette.background,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            child: _ActionCard(
+              color: palette.contrastBg,
+              icon: Icons.bar_chart,
+              iconColor: palette.background,
+              label: 'Мой\nпрофиль',
+              labelColor: palette.background,
+              onTap: () => context.push('/profile'),
             ),
           ),
         ],
@@ -230,38 +273,47 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildArticleCard(AppPalette palette) {
-    return Container(
-      margin: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: palette.background,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: palette.contrastBg.withOpacity(0.1)),
-      ),
+  Widget _buildQuickActions(BuildContext context, AppPalette palette) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-            child: Container(
-              height: 150,
-              color: Colors.grey[300],
-              child: const Center(child: Icon(Icons.image)),
-            ),
+          Text(
+            'Быстрые действия',
+            style: TextStyle(
+                color: palette.contrastBg,
+                fontSize: 18,
+                fontWeight: FontWeight.bold),
           ),
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(
-              'Либо работа мечты, либо правда о друге',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+          const SizedBox(height: 12),
+          _QuickActionTile(
+            palette: palette,
+            icon: Icons.work_outline,
+            title: 'Все кейсы',
+            subtitle: 'Выберите кейс для тренировки',
+            onTap: () => context.push('/cases'),
+          ),
+          _QuickActionTile(
+            palette: palette,
+            icon: Icons.history,
+            title: 'История',
+            subtitle: 'Посмотреть прошлые сессии',
+            onTap: () => context.push('/history'),
+          ),
+          _QuickActionTile(
+            palette: palette,
+            icon: Icons.info_outline,
+            title: 'Инструкция',
+            subtitle: 'Как правильно проходить кейсы',
+            onTap: () => context.push('/instructions'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFloatingBottomBar(AppPalette palette) {
+  Widget _buildFloatingBottomBar(BuildContext context, AppPalette palette) {
     return Positioned(
       bottom: 20,
       left: 20,
@@ -277,34 +329,153 @@ class HomeScreen extends StatelessWidget {
           children: [
             IconButton(
               icon: Icon(Icons.bar_chart, color: palette.background),
-              onPressed: () {},
+              onPressed: () => context.push('/profile'),
+              tooltip: 'Профиль',
             ),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: palette.altBtn,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.work, color: palette.contrastBg),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Тренажер',
-                    style: TextStyle(
-                      color: palette.contrastBg,
-                      fontWeight: FontWeight.bold,
+            GestureDetector(
+              onTap: () => context.push('/cases'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.altBtn,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.work, color: palette.contrastBg),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Тренажёр',
+                      style: TextStyle(
+                        color: palette.contrastBg,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             IconButton(
-              icon: Icon(Icons.question_answer_outlined,
-                  color: palette.background),
-              onPressed: () {},
+              icon: Icon(Icons.history, color: palette.background),
+              onPressed: () => context.push('/history'),
+              tooltip: 'История',
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Reusable Widgets ──────────────────────────────────────────────────────────
+
+class _ActionCard extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final Color labelColor;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.labelColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, color: iconColor, size: 32),
+              Text(
+                label,
+                style: TextStyle(
+                  color: labelColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final AppPalette palette;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _QuickActionTile({
+    required this.palette,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: palette.contrastBg.withOpacity(0.1)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: palette.primaryBtn.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: palette.primaryBtn, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          color: palette.contrastBg,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15)),
+                  Text(subtitle,
+                      style: TextStyle(
+                          color: palette.contrastBg.withOpacity(0.5),
+                          fontSize: 12)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right,
+                color: palette.contrastBg.withOpacity(0.3)),
           ],
         ),
       ),

@@ -1,204 +1,146 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
+import 'package:case_go/core/api/auth/auth_api.dart' show ApiException;
 import 'package:case_go/core/api/cases/cases.dart';
 import 'package:http/http.dart' as http;
 
-import '../auth/auth_api.dart' show ApiException;
-
-/// Базовая реализация [TrainerApi].
-///
-/// Все методы требуют авторизации. Ролевые ограничения (creator / admin)
-/// обеспечиваются на стороне бэкенда; клиент передаёт только токен.
-class TrainerApiImpl implements TrainerApi {
-  // ──────────────────────────────────────────
-  // Конфигурация
-  // ──────────────────────────────────────────
-
+class CaseGoApiImpl implements CaseGoApi {
   final String baseUrl;
+  final String Function() accessTokenProvider;
   final http.Client _client;
 
-  /// Callback, возвращающий актуальный access-токен.
-  final String Function() accessTokenProvider;
-
-  TrainerApiImpl({
+  CaseGoApiImpl({
     required this.baseUrl,
     required this.accessTokenProvider,
     http.Client? client,
   }) : _client = client ?? http.Client();
 
-  // ──────────────────────────────────────────
-  // Вспомогательные методы
-  // ──────────────────────────────────────────
-
-  Uri _uri(String path, [Map<String, String>? queryParams]) {
+  Uri _uri(String path, [Map<String, String>? q]) {
     final uri = Uri.parse('$baseUrl$path');
-    return queryParams != null ? uri.replace(queryParameters: queryParams) : uri;
+    return q != null ? uri.replace(queryParameters: q) : uri;
   }
 
-  Map<String, String> get _authHeaders => {
+  Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': 'Bearer ${accessTokenProvider()}',
       };
 
-  String _encode(Map<String, dynamic> body) => jsonEncode(body);
+  void _log(String method, String path, [Object? body]) =>
+      dev.log('→ $method $path${body != null ? ' $body' : ''}',
+          name: 'CaseGoApi');
 
-  Map<String, dynamic> _decodeObject(http.Response response) =>
-      jsonDecode(response.body) as Map<String, dynamic>;
+  void _logResp(http.Response r) =>
+      dev.log('← ${r.statusCode} ${r.request?.url}', name: 'CaseGoApi');
 
-  List<Map<String, dynamic>> _decodeList(http.Response response) =>
-      (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
-
-  void _logRequest(String method, String path, [Object? body]) {
-    dev.log(
-      '→ $method $path${body != null ? ' body=$body' : ''}',
-      name: 'TrainerApi',
-    );
-  }
-
-  void _logResponse(http.Response response) {
-    dev.log(
-      '← ${response.statusCode} ${response.request?.url}',
-      name: 'TrainerApi',
-    );
-  }
-
-  Map<String, dynamic> _handleObject(http.Response response) {
-    _logResponse(response);
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return _decodeObject(response);
+  Map<String, dynamic> _handleObject(http.Response r) {
+    _logResp(r);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      return jsonDecode(r.body) as Map<String, dynamic>;
     }
-    throw ApiException(statusCode: response.statusCode, message: response.body);
+    throw ApiException(statusCode: r.statusCode, message: r.body);
   }
 
-  List<Map<String, dynamic>> _handleList(http.Response response) {
-    _logResponse(response);
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return _decodeList(response);
+  List<Map<String, dynamic>> _handleList(http.Response r) {
+    _logResp(r);
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      final body = jsonDecode(r.body);
+      if (body is List) return body.cast<Map<String, dynamic>>();
+      // Backend may wrap in object
+      if (body is Map && body.containsKey('cases')) {
+        return (body['cases'] as List).cast<Map<String, dynamic>>();
+      }
+      return [];
     }
-    throw ApiException(statusCode: response.statusCode, message: response.body);
-  }
-
-  void _handleEmpty(http.Response response) {
-    _logResponse(response);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(statusCode: response.statusCode, message: response.body);
-    }
-  }
-
-  Future<http.Response> _patch(Uri uri, Map<String, dynamic> body) async {
-    final request = http.Request('PATCH', uri)
-      ..headers.addAll(_authHeaders)
-      ..body = _encode(body);
-    return http.Response.fromStream(await _client.send(request));
-  }
-
-  // ──────────────────────────────────────────
-  // Кейсы — коллекция
-  // ──────────────────────────────────────────
-
-  @override
-  Future<Map<String, dynamic>> createCase(Map<String, dynamic> body) async {
-    _logRequest('POST', '/cases', body);
-    final response = await _client.post(
-      _uri('/cases'),
-      headers: _authHeaders,
-      body: _encode(body),
-    );
-    return _handleObject(response);
+    throw ApiException(statusCode: r.statusCode, message: r.body);
   }
 
   @override
-  Future<Map<String, dynamic>> getCases({
+  Future<List<Map<String, dynamic>>> getCases({
+    int limit = 20,
     int page = 1,
-    int pageSize = 20,
+    String? topic,
+    int? category,
   }) async {
-    final query = {'page': '$page', 'page_size': '$pageSize'};
-    _logRequest('GET', '/cases', query);
-    final response = await _client.get(
-      _uri('/cases', query),
-      headers: _authHeaders,
-    );
-    return _handleObject(response);
+    // Backend uses ShouldBindJSON for GET, so we send a body
+    _log('GET', '/cases', {'limit': limit, 'page': page});
+    final body = <String, dynamic>{'limit': limit, 'page': page};
+    if (topic != null && topic.isNotEmpty) body['topic'] = topic;
+    if (category != null) body['category'] = category;
+
+    final request = http.Request('GET', _uri('/cases'))
+      ..headers.addAll(_headers)
+      ..body = jsonEncode(body);
+    final streamed = await _client.send(request);
+    final r = await http.Response.fromStream(streamed);
+    return _handleList(r);
   }
 
   @override
-  Future<Map<String, dynamic>> patchCase(
-    int id,
+  Future<Map<String, dynamic>> getCaseById(int caseId) async {
+    _log('GET', '/cases/$caseId');
+    final r = await _client.get(_uri('/cases/$caseId'), headers: _headers);
+    return _handleObject(r);
+  }
+
+  @override
+  Future<Map<String, dynamic>> startCase(int caseId) async {
+    _log('POST', '/cases/$caseId');
+    final r = await _client.post(
+      _uri('/cases/$caseId'),
+      headers: _headers,
+      body: jsonEncode({'case_id': caseId}),
+    );
+    return _handleObject(r);
+  }
+
+  @override
+  Future<Map<String, dynamic>> sendInteraction(
+    int dialogId,
     Map<String, dynamic> body,
   ) async {
-    _logRequest('PATCH', '/cases/$id', body);
-    final response = await _patch(_uri('/cases/$id'), body);
-    return _handleObject(response);
+    _log('POST', '/dialogs/$dialogId', body);
+    final r = await _client.post(
+      _uri('/dialogs/$dialogId'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return _handleObject(r);
   }
 
   @override
-  Future<void> deleteCase(int id) async {
-    _logRequest('DELETE', '/cases/$id');
-    final response = await _client.delete(
-      _uri('/cases/$id'),
-      headers: _authHeaders,
+  Future<Map<String, dynamic>> completeDialog(int dialogId) async {
+    _log('POST', '/dialogs/$dialogId/complete');
+    final r = await _client.post(
+      _uri('/dialogs/$dialogId/complete'),
+      headers: _headers,
+      body: jsonEncode({}),
     );
-    _handleEmpty(response);
-  }
-
-  // ──────────────────────────────────────────
-  // Кейс — отдельный ресурс
-  // ──────────────────────────────────────────
-
-  @override
-  Future<Map<String, dynamic>> getCase(int id) async {
-    _logRequest('GET', '/cases/$id');
-    final response = await _client.get(
-      _uri('/cases/$id'),
-      headers: _authHeaders,
-    );
-    return _handleObject(response);
+    return _handleObject(r);
   }
 
   @override
-  Future<Map<String, dynamic>> submitCaseResult(
-    int id,
-    Map<String, dynamic> body,
-  ) async {
-    _logRequest('POST', '/cases/$id', body);
-    final response = await _client.post(
-      _uri('/cases/$id'),
-      headers: _authHeaders,
-      body: _encode(body),
-    );
-    return _handleObject(response);
+  Future<Map<String, dynamic>> getDialogById(int dialogId) async {
+    _log('GET', '/dialogs/$dialogId');
+    final r =
+        await _client.get(_uri('/dialogs/$dialogId'), headers: _headers);
+    return _handleObject(r);
   }
 
-  // ──────────────────────────────────────────
-  // История ответов
-  // ──────────────────────────────────────────
-
   @override
-  Future<List<Map<String, dynamic>>> getHistory({int? caseId}) async {
-    final query = caseId != null ? {'case_id': '$caseId'} : null;
-    _logRequest('GET', '/history', query);
-    final response = await _client.get(
-      _uri('/history', query),
-      headers: _authHeaders,
-    );
-    return _handleList(response);
-  }
-
-  // ──────────────────────────────────────────
-  // Аналитика
-  // ──────────────────────────────────────────
-
-  @override
-  Future<Map<String, dynamic>> getAnalytics([
-    Map<String, String>? queryParams,
-  ]) async {
-    _logRequest('GET', '/analytics', queryParams);
-    final response = await _client.get(
-      _uri('/analytics', queryParams),
-      headers: _authHeaders,
-    );
-    return _handleObject(response);
+  Future<List<Map<String, dynamic>>> getUserDialogs(
+    int userId, {
+    int limit = 20,
+    int page = 1,
+  }) async {
+    _log('GET', '/users/$userId/dialogs');
+    final q = {
+      'userID': '$userId',
+      'limit': '$limit',
+      'page': '$page',
+    };
+    final r = await _client.get(_uri('/users/$userId/dialogs', q),
+        headers: _headers);
+    return _handleList(r);
   }
 }

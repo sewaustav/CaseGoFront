@@ -1,26 +1,31 @@
+import 'package:case_go/core/api/case_profile/case_profile.dart';
+import 'package:case_go/core/api/cases/cases.dart';
 import 'package:case_go/core/api/profile/profile.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
 import 'package:case_go/features/auth/repository/auth_repo.dart';
 import 'package:case_go/features/auth/ui/auth_screen.dart';
+import 'package:case_go/features/cases/cases_cubit.dart';
+import 'package:case_go/features/cases/cases_screen.dart';
+import 'package:case_go/features/dialog/dialog_cubit.dart';
+import 'package:case_go/features/dialog/dialog_screen.dart';
+import 'package:case_go/features/history/history_cubit.dart';
+import 'package:case_go/features/history/history_screen.dart';
 import 'package:case_go/features/home/home_bloc.dart';
 import 'package:case_go/features/home/home_screen.dart';
+import 'package:case_go/features/instructions/instructions_screen.dart';
+import 'package:case_go/features/profile/profile_cubit.dart';
+import 'package:case_go/features/profile/profile_screen.dart';
 import 'package:case_go/features/profile_setup/profile_setup_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:case_go/features/profile_setup/profile_setup_repository.dart';
 import 'package:case_go/features/profile_setup/screen.dart';
+import 'package:case_go/features/result/result_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:developer' as dev;
 
-// ── Listenable-обёртка над HomeBloc ──────────────────────────────────────────
-//
-// GoRouter.refreshListenable принимает Listenable.
-// BlocBase не реализует Listenable из коробки, поэтому оборачиваем.
-// Каждый раз когда HomeBloc эмитит новое состояние — нотифицируем роутер,
-// и он перезапускает redirect callback с актуальным состоянием.
-//
 class _BlocRefreshListenable extends ChangeNotifier {
   _BlocRefreshListenable(this._bloc) {
     _bloc.stream.listen((_) {
@@ -34,8 +39,6 @@ class _BlocRefreshListenable extends ChangeNotifier {
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
-
-  // Создаём listenable один раз — он живёт пока живёт роутер
   static _BlocRefreshListenable? _refreshListenable;
 
   static GoRouter createRouter(HomeBloc homeBloc) {
@@ -46,7 +49,6 @@ class AppRouter {
       initialLocation: '/',
       refreshListenable: _refreshListenable,
 
-      // ── Редиректы ──────────────────────────────────────────
       redirect: (context, state) {
         final homeBlocState = homeBloc.state;
         final isLoading = homeBlocState is HomeLoading;
@@ -71,6 +73,17 @@ class AppRouter {
           dev.log('🧭 redirect → /profile/setup', name: 'Router');
           return '/profile/setup';
         }
+
+        // Protected routes require auth
+        final protectedRoutes = [
+          '/profile',
+          '/cases',
+          '/dialog',
+          '/result',
+          '/history',
+        ];
+        final isProtected = protectedRoutes.any((r) => location.startsWith(r));
+        if (!isAuthenticated && isProtected) return '/auth';
 
         if (isAuthenticated && location == '/auth') {
           dev.log('🧭 redirect → /', name: 'Router');
@@ -104,7 +117,6 @@ class AppRouter {
             final mode = extra is ProfileSetupExtra
                 ? extra.mode
                 : ProfileSetupMode.create;
-
             return BlocProvider(
               create: (_) => ProfileSetupBloc(
                 ProfileSetupRepository(GetIt.I<ProfileApi>()),
@@ -112,6 +124,65 @@ class AppRouter {
               child: ProfileSetupScreen(mode: mode),
             );
           },
+        ),
+
+        GoRoute(
+          path: '/profile',
+          name: 'profile',
+          builder: (context, state) => BlocProvider(
+            create: (_) => ProfileCubit(
+              GetIt.I<ProfileApi>(),
+              GetIt.I<CaseProfileApi>(),
+            )..load(),
+            child: const ProfileScreen(),
+          ),
+        ),
+
+        GoRoute(
+          path: '/cases',
+          name: 'cases',
+          builder: (context, state) => BlocProvider(
+            create: (_) => CasesCubit(GetIt.I<CaseGoApi>()),
+            child: const CasesScreen(),
+          ),
+        ),
+
+        GoRoute(
+          path: '/cases/:caseId',
+          name: 'caseDialog',
+          builder: (context, state) {
+            final caseId = int.parse(state.pathParameters['caseId']!);
+            final extra = state.extra as Map<String, dynamic>?;
+            final topic = extra?['topic'] as String? ?? 'Кейс #$caseId';
+            return BlocProvider(
+              create: (_) => DialogCubit(GetIt.I<CaseGoApi>()),
+              child: DialogScreen(caseId: caseId, caseTopic: topic),
+            );
+          },
+        ),
+
+        GoRoute(
+          path: '/result',
+          name: 'result',
+          builder: (context, state) {
+            final result = state.extra as Map<String, dynamic>? ?? {};
+            return ResultScreen(result: result);
+          },
+        ),
+
+        GoRoute(
+          path: '/history',
+          name: 'history',
+          builder: (context, state) => BlocProvider(
+            create: (_) => HistoryCubit(GetIt.I<CaseProfileApi>()),
+            child: const HistoryScreen(),
+          ),
+        ),
+
+        GoRoute(
+          path: '/instructions',
+          name: 'instructions',
+          builder: (context, state) => const InstructionsScreen(),
         ),
       ],
     );

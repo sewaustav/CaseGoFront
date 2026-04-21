@@ -1,7 +1,12 @@
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
+import 'package:case_go/core/api/case_profile/case_profile.dart';
+import 'package:case_go/core/api/case_profile/case_profile_impl.dart';
+import 'package:case_go/core/api/cases/cases.dart';
+import 'package:case_go/core/api/cases/cases_api.dart';
 import 'package:case_go/core/api/profile/profile.dart';
 import 'package:case_go/core/api/profile/profile_api.dart';
+import 'package:case_go/core/config.dart';
 import 'package:case_go/core/routing/router.dart';
 import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/features/auth/repository/auth_repo.dart';
@@ -24,14 +29,28 @@ void main() async {
 
   getIt.registerSingleton<AuthApi>(
     AuthApiImpl(
-      baseUrl: 'http://localhost:8000/api/v1/auth',
+      baseUrl: AppConfig.authUrl,
       accessTokenProvider: () => storage.accessTokenSync,
     ),
   );
 
   getIt.registerSingleton<ProfileApi>(
     ProfileApiImpl(
-      baseUrl: 'http://localhost:8080/profile/api/v1',
+      baseUrl: AppConfig.profileUrl,
+      accessTokenProvider: () => storage.accessTokenSync ?? '',
+    ),
+  );
+
+  getIt.registerSingleton<CaseGoApi>(
+    CaseGoApiImpl(
+      baseUrl: AppConfig.caseGoUrl,
+      accessTokenProvider: () => storage.accessTokenSync ?? '',
+    ),
+  );
+
+  getIt.registerSingleton<CaseProfileApi>(
+    CaseProfileApiImpl(
+      baseUrl: AppConfig.caseProfileUrl,
       accessTokenProvider: () => storage.accessTokenSync ?? '',
     ),
   );
@@ -48,7 +67,6 @@ void main() async {
     HomeRepository(getIt<AuthRepository>()),
   );
 
-  // HomeBloc создаём ДО роутера — роутер подписывается на него через refreshListenable
   final homeBloc = HomeBloc(getIt<HomeRepository>())..add(AppStarted());
 
   runApp(CaseGo(homeBloc: homeBloc));
@@ -66,7 +84,6 @@ class CaseGo extends StatelessWidget {
       child: MaterialApp.router(
         title: 'CaseGo',
         debugShowCheckedModeBanner: false,
-        // Роутер получает homeBloc и подписывается на его изменения
         routerConfig: AppRouter.createRouter(homeBloc),
         theme: ThemeData(
           useMaterial3: true,
