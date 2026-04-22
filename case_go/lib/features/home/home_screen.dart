@@ -85,6 +85,8 @@ class HomeScreen extends StatelessWidget {
                       context.push('/profile');
                     case 'history':
                       context.push('/history');
+                    case 'admin':
+                      context.push('/admin');
                     case 'logout':
                       context.read<HomeBloc>().add(LogoutRequested());
                   }
@@ -96,7 +98,11 @@ class HomeScreen extends StatelessWidget {
                     color: isAuth ? palette.altBtn : palette.background,
                   ),
                 ),
-                itemBuilder: (context) => isAuth
+                itemBuilder: (context) {
+                  final role = isAuth
+                      ? (state as Authenticated).user['role'] as int? ?? 1
+                      : 1;
+                  return isAuth
                     ? [
                         const PopupMenuItem(
                           value: 'profile',
@@ -114,6 +120,15 @@ class HomeScreen extends StatelessWidget {
                             Text('История'),
                           ]),
                         ),
+                        if (role == 0)
+                          const PopupMenuItem(
+                            value: 'admin',
+                            child: Row(children: [
+                              Icon(Icons.admin_panel_settings, size: 18),
+                              SizedBox(width: 8),
+                              Text('Админка'),
+                            ]),
+                          ),
                         const PopupMenuItem(
                           value: 'logout',
                           child: Row(children: [
@@ -132,7 +147,8 @@ class HomeScreen extends StatelessWidget {
                           value: 'reg',
                           child: Text('Регистрация'),
                         ),
-                      ],
+                      ];
+                },
               ),
             );
           },

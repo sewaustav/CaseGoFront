@@ -137,4 +137,43 @@ class CaseGoApiImpl implements CaseGoApi {
         headers: _headers);
     return _handleList(r);
   }
+
+  @override
+  Future<Map<String, dynamic>> getStats() async {
+    _log('GET', '/admin/stats');
+    final r = await _client.get(_uri('/admin/stats'), headers: _headers);
+    return _handleObject(r);
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCase(Map<String, dynamic> body) async {
+    _log('POST', '/case', body);
+    final r = await _client.post(
+      _uri('/case'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return _handleObject(r);
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateCase(
+      int caseId, Map<String, dynamic> body) async {
+    _log('PUT', '/case/$caseId', body);
+    final r = await _client.put(
+      _uri('/case/$caseId'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return _handleObject(r);
+  }
+
+  @override
+  Future<void> deleteCase(int caseId) async {
+    _log('DELETE', '/case/$caseId');
+    final r = await _client.delete(_uri('/case/$caseId'), headers: _headers);
+    if (r.statusCode < 200 || r.statusCode >= 300) {
+      throw ApiException(statusCode: r.statusCode, message: r.body);
+    }
+  }
 }

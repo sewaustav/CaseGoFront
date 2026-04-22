@@ -15,7 +15,7 @@ class HomeRepository {
     if (result == null) return null;
 
     final (user, needsSetup) = result;
-    return ({'id': user.id, 'email': user.email, 'username': user.name}, needsSetup);
+    return ({'id': user.id, 'email': user.email, 'username': user.name, 'role': user.role}, needsSetup);
   }
 
   Future<void> logout() async {
