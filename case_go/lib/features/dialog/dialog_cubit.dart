@@ -109,9 +109,7 @@ class DialogCubit extends Cubit<DialogState> {
     try {
       final data = await _api.startCase(caseId);
       final dialogId = (data['dialog_id'] as num).toInt();
-      final question = data['question'] as String? ??
-          data['first_question'] as String? ??
-          'Первый вопрос';
+      final question = data['first_question'] as String? ?? 'Первый вопрос';
       final step = (data['step'] as num?)?.toInt() ?? 0;
 
       emit(DialogActive(
