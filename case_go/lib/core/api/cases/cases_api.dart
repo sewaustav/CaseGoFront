@@ -62,17 +62,11 @@ class CaseGoApiImpl implements CaseGoApi {
     String? topic,
     int? category,
   }) async {
-    // Backend uses ShouldBindJSON for GET, so we send a body
     _log('GET', '/cases', {'limit': limit, 'page': page});
-    final body = <String, dynamic>{'limit': limit, 'page': page};
-    if (topic != null && topic.isNotEmpty) body['topic'] = topic;
-    if (category != null) body['category'] = category;
-
-    final request = http.Request('GET', _uri('/cases'))
-      ..headers.addAll(_headers)
-      ..body = jsonEncode(body);
-    final streamed = await _client.send(request);
-    final r = await http.Response.fromStream(streamed);
+    final q = <String, String>{'limit': '$limit', 'page': '$page'};
+    if (topic != null && topic.isNotEmpty) q['topic'] = topic;
+    if (category != null) q['category'] = '$category';
+    final r = await _client.get(_uri('/cases', q), headers: _headers);
     return _handleList(r);
   }
 
