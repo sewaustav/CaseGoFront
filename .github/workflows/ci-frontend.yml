@@ -34,6 +34,11 @@ jobs:
           context: ./case_go
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/casego-frontend:latest
+          build-args: |
+            AUTH_URL=http://${{ secrets.SERVER_HOST }}:8000/api/v1/auth
+            PROFILE_URL=http://${{ secrets.SERVER_HOST }}:8080/profile/api/v1
+            CASE_GO_URL=http://${{ secrets.SERVER_HOST }}:8081/api/v1/case_go
+            CASE_PROFILE_URL=http://${{ secrets.SERVER_HOST }}:8082/api/v1/case_go
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

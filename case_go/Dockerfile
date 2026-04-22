@@ -6,10 +6,10 @@ COPY . .
 
 RUN flutter pub get
 
-ARG AUTH_URL=/api/v1/auth
-ARG PROFILE_URL=/profile/api/v1
-ARG CASE_GO_URL=/api/v1/case_go
-ARG CASE_PROFILE_URL=/api/v1/case_profile
+ARG AUTH_URL=http://localhost:8000/api/v1/auth
+ARG PROFILE_URL=http://localhost:8080/profile/api/v1
+ARG CASE_GO_URL=http://localhost:8081/api/v1/case_go
+ARG CASE_PROFILE_URL=http://localhost:8082/api/v1/case_go
 
 RUN flutter build web --release \
     --dart-define=AUTH_URL=$AUTH_URL \
