@@ -32,4 +32,14 @@ abstract class CaseGoApi {
     int limit = 20,
     int page = 1,
   });
+
+  // Admin methods
+
+  Future<Map<String, dynamic>> getStats();
+
+  Future<Map<String, dynamic>> createCase(Map<String, dynamic> body);
+
+  Future<Map<String, dynamic>> updateCase(int caseId, Map<String, dynamic> body);
+
+  Future<void> deleteCase(int caseId);
 }

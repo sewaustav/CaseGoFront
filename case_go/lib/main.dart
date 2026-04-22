@@ -1,3 +1,5 @@
+import 'package:case_go/core/api/admin/admin.dart';
+import 'package:case_go/core/api/admin/admin_api.dart';
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
 import 'package:case_go/core/api/case_profile/case_profile.dart';
@@ -51,6 +53,13 @@ void main() async {
   getIt.registerSingleton<CaseProfileApi>(
     CaseProfileApiImpl(
       baseUrl: AppConfig.caseProfileUrl,
+      accessTokenProvider: () => storage.accessTokenSync ?? '',
+    ),
+  );
+
+  getIt.registerSingleton<AdminApi>(
+    AdminApiImpl(
+      usersBaseUrl: '${AppConfig.authUrl.replaceFirst('/auth', '/users')}',
       accessTokenProvider: () => storage.accessTokenSync ?? '',
     ),
   );

@@ -1,6 +1,9 @@
+import 'package:case_go/core/api/admin/admin.dart';
 import 'package:case_go/core/api/case_profile/case_profile.dart';
 import 'package:case_go/core/api/cases/cases.dart';
 import 'package:case_go/core/api/profile/profile.dart';
+import 'package:case_go/features/admin/admin_cubit.dart';
+import 'package:case_go/features/admin/admin_screen.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
 import 'package:case_go/features/auth/repository/auth_repo.dart';
 import 'package:case_go/features/auth/ui/auth_screen.dart';
@@ -72,6 +75,14 @@ class AppRouter {
         if (needsProfile) {
           dev.log('🧭 redirect → /profile/setup', name: 'Router');
           return '/profile/setup';
+        }
+
+        // Admin route requires role=0
+        if (location.startsWith('/admin')) {
+          if (!isAuthenticated) return '/auth';
+          final role = (homeBlocState as Authenticated).user['role'] as int? ?? 1;
+          if (role != 0) return '/';
+          return null;
         }
 
         // Protected routes require auth
@@ -183,6 +194,18 @@ class AppRouter {
           path: '/instructions',
           name: 'instructions',
           builder: (context, state) => const InstructionsScreen(),
+        ),
+
+        GoRoute(
+          path: '/admin',
+          name: 'admin',
+          builder: (context, state) => BlocProvider(
+            create: (_) => AdminCubit(
+              GetIt.I<CaseGoApi>(),
+              GetIt.I<AdminApi>(),
+            ),
+            child: const AdminScreen(),
+          ),
         ),
       ],
     );
