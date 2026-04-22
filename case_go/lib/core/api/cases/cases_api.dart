@@ -93,9 +93,9 @@ class CaseGoApiImpl implements CaseGoApi {
     int dialogId,
     Map<String, dynamic> body,
   ) async {
-    _log('POST', '/dialogs/$dialogId', body);
+    _log('POST', '/dialog', body);
     final r = await _client.post(
-      _uri('/dialogs/$dialogId'),
+      _uri('/dialog'),
       headers: _headers,
       body: jsonEncode(body),
     );
