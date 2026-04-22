@@ -81,8 +81,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: items.length,
-            itemBuilder: (context, index) =>
-                _HistoryCard(palette: palette, result: items[index]),
+            itemBuilder: (context, index) => _HistoryCard(
+              palette: palette,
+              result: items[index],
+              dialogNumber: items.length - index,
+            ),
           );
         },
       ),
@@ -95,12 +98,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 class _HistoryCard extends StatelessWidget {
   final AppPalette palette;
   final Map<String, dynamic> result;
-  const _HistoryCard({required this.palette, required this.result});
+  final int dialogNumber;
+  const _HistoryCard({required this.palette, required this.result, required this.dialogNumber});
 
   @override
   Widget build(BuildContext context) {
     final caseId = result['case_id'];
-    final dialogId = result['dialog_id'];
     final steps = result['steps_count'] ?? 0;
     final tokens = result['tokens_used'] ?? 0;
     final finishedAt = result['finished_at'] as String?;
@@ -148,7 +151,7 @@ class _HistoryCard extends StatelessWidget {
                             fontSize: 16),
                       ),
                       Text(
-                        'Диалог #$dialogId • ${_formatDate(finishedAt)}',
+                        'Диалог #$dialogNumber • ${_formatDate(finishedAt)}',
                         style: TextStyle(
                             color: palette.contrastBg.withOpacity(0.5),
                             fontSize: 12),
