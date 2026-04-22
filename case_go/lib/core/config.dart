@@ -13,6 +13,6 @@ class AppConfig {
   );
   static const caseProfileUrl = String.fromEnvironment(
     'CASE_PROFILE_URL',
-    defaultValue: '/api/v1/case_profile',
+    defaultValue: '/api/v1/case_go',
   );
 }
