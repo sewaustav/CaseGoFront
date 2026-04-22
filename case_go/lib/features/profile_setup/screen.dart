@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/features/home/home_bloc.dart';
+import 'package:case_go/features/profile/profile_cubit.dart';
 import 'package:case_go/features/profile_setup/profile_setup_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:case_go/features/profile_setup/profile_setup_repository.dart';
@@ -50,6 +51,53 @@ class _ProfileSetupViewState extends State<_ProfileSetupView> {
   static const _socialTypes = [
     'telegram', 'vk', 'instagram', 'linkedin', 'github', 'other',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == ProfileSetupMode.edit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromProfile());
+    }
+  }
+
+  void _prefillFromProfile() {
+    final state = context.read<ProfileCubit>().state;
+    if (state is! ProfileLoaded) return;
+
+    final p = state.profile;
+    _usernameCtrl.text = p['username'] as String? ?? '';
+    _nameCtrl.text = p['name'] as String? ?? '';
+    _surnameCtrl.text = p['surname'] as String? ?? '';
+    _patronymicCtrl.text = p['patronymic'] as String? ?? '';
+    _cityCtrl.text = p['city'] as String? ?? '';
+    _ageCtrl.text = p['age']?.toString() ?? '';
+    _descriptionCtrl.text = p['description'] as String? ?? '';
+    _professionCtrl.text = p['profession'] as String? ?? '';
+
+    final sex = p['sex'];
+    if (sex != null) setState(() => _selectedSex = sex as int?);
+
+    if (state.purposes.isNotEmpty) {
+      for (final c in _purposeCtrs) c.dispose();
+      _purposeCtrs.clear();
+      for (final pur in state.purposes) {
+        _purposeCtrs.add(TextEditingController(text: pur['purpose'] as String? ?? ''));
+      }
+    }
+
+    if (state.socials.isNotEmpty) {
+      for (final e in _socialEntries) e.urlCtrl.dispose();
+      _socialEntries.clear();
+      for (final s in state.socials) {
+        final entry = _SocialEntry();
+        entry.selectedType = s['type'] as String?;
+        entry.urlCtrl.text = s['url'] as String? ?? '';
+        _socialEntries.add(entry);
+      }
+    }
+
+    setState(() {});
+  }
 
   @override
   void dispose() {
