@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
 import 'package:case_go/core/api/profile/profile.dart';
@@ -16,6 +18,7 @@ class AuthRepository {
       '507429813406-cp3kvojsh2vmp1d0j658m621pe0fp0ng.apps.googleusercontent.com';
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleInitialized = false;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventsSub;
 
   AuthRepository({
     required AuthApi api,
@@ -29,10 +32,13 @@ class AuthRepository {
 
   Future<void> _ensureGoogleInitialized() async {
     if (_googleInitialized) return;
-    await _googleSignIn.initialize(
-      clientId: _webClientId,
-      serverClientId: _webClientId,
-    );
+    // На вебе `serverClientId` вызывает assert в debug и не используется в release.
+    // На мобилке — нужен для получения idToken для бэкенда.
+    if (kIsWeb) {
+      await _googleSignIn.initialize(clientId: _webClientId);
+    } else {
+      await _googleSignIn.initialize(serverClientId: _webClientId);
+    }
     _googleInitialized = true;
   }
 
@@ -65,21 +71,12 @@ class AuthRepository {
 
   // ── Проверка наличия профиля ──────────────────────────────
 
-  /// Проверяет, заполнен ли профиль пользователя на сервере.
-  ///
-  /// Возвращает true если профиль существует и активен.
-  /// Возвращает false если сервер вернул 404 (профиль не заполнен).
-  ///
-  /// Примечание: бэкенд возвращает 404 + {"info": "user is not active"}
-  /// когда профиль не существует — обрабатываем именно это.
   Future<bool> hasProfile() async {
     try {
       await _profileApi.getProfile();
       return true;
     } on ApiException catch (e) {
       if (e.statusCode == 404) return false;
-      // Бэкенд возвращает 500 + "no rows in result set" когда профиль не создан.
-      // Это баг на бэкенде (должен быть 404), обрабатываем на клиенте.
       if (e.statusCode == 500 && e.message.contains('no rows in result set')) {
         return false;
       }
@@ -93,8 +90,6 @@ class AuthRepository {
 
   // ── Публичные методы ──────────────────────────────────────
 
-  /// Вход по email + password.
-  /// Возвращает пару (user, needsProfileSetup).
   Future<(AuthUser, bool)> login({
     required String email,
     required String password,
@@ -118,8 +113,6 @@ class AuthRepository {
     }
   }
 
-  /// Регистрация по email + password.
-  /// Всегда возвращает needsProfileSetup = true.
   Future<(AuthUser, bool)> register({
     required String name,
     required String email,
@@ -137,7 +130,6 @@ class AuthRepository {
       });
       await _saveTokens(tokenData);
       final user = await _fetchMe();
-      // После регистрации профиль точно не заполнен
       return (user, true);
     } on AuthFailureException {
       rethrow;
@@ -149,14 +141,53 @@ class AuthRepository {
     }
   }
 
-  /// Вход через Google.
-  /// Проверяет наличие профиля — если нет, возвращает needsProfileSetup = true.
+  /// Подписка на Google auth events. Нужно вызвать один раз при старте
+  /// на вебе — кнопка GIS может сработать в любой момент.
+  Future<void> initGoogleAuthListener({
+    required void Function(AuthUser user, bool needsProfileSetup) onSignIn,
+    required void Function(String message) onError,
+  }) async {
+    await _ensureGoogleInitialized();
+
+    _authEventsSub?.cancel();
+    _authEventsSub = _googleSignIn.authenticationEvents.listen(
+      (event) async {
+        if (event is GoogleSignInAuthenticationEventSignIn) {
+          try {
+            final result = await _handleGoogleUser(event.user);
+            onSignIn(result.$1, result.$2);
+          } catch (e) {
+            if (e is AuthFailureException) {
+              onError(e.message);
+            } else {
+              onError('Ошибка Google входа: $e');
+            }
+          }
+        }
+      },
+      onError: (e) {
+        onError('Google Sign-In ошибка: $e');
+      },
+    );
+
+    // Пытаемся silent-auth (FedCM / One Tap) — если не залогинен, просто вернёт null.
+    if (kIsWeb) {
+      try {
+        await _googleSignIn.attemptLightweightAuthentication();
+      } catch (_) {
+        // Silent flow может молча фейлиться — это ок.
+      }
+    }
+  }
+
+  /// Вход через Google. Для мобилок — открывает нативный выбор аккаунта.
+  /// На вебе кидает ошибку — там должна использоваться Google-кнопка.
   Future<(AuthUser, bool)> loginWithGoogle() async {
     await _ensureGoogleInitialized();
 
     if (!_googleSignIn.supportsAuthenticate()) {
       throw const AuthFailureException(
-        'Google Sign-In не поддерживается на этой платформе',
+        'На вебе используйте Google-кнопку для входа',
       );
     }
 
@@ -172,7 +203,11 @@ class AuthRepository {
       throw AuthFailureException('Неизвестная ошибка Google Sign-In: $e');
     }
 
-    final auth = await googleUser.authentication;
+    return _handleGoogleUser(googleUser);
+  }
+
+  Future<(AuthUser, bool)> _handleGoogleUser(GoogleSignInAccount user) async {
+    final auth = user.authentication;
     final idToken = auth.idToken;
 
     if (idToken == null) {
@@ -184,16 +219,16 @@ class AuthRepository {
       final data = await _api.googleAuth({'id_token': idToken});
       await _saveTokens(data);
 
-      AuthUser user;
+      AuthUser authUser;
       final userJson = data['user'];
       if (userJson is Map<String, dynamic>) {
-        user = AuthUser.fromJson(userJson);
+        authUser = AuthUser.fromJson(userJson);
       } else {
-        user = await _fetchMe();
+        authUser = await _fetchMe();
       }
 
       final profileExists = await hasProfile();
-      return (user, !profileExists);
+      return (authUser, !profileExists);
     } on AuthFailureException {
       rethrow;
     } on ApiException catch (e) {
@@ -204,8 +239,6 @@ class AuthRepository {
     }
   }
 
-  /// Восстанавливает сессию при старте приложения.
-  /// Возвращает (user, needsProfileSetup) или null если токенов нет.
   Future<(AuthUser, bool)?> restoreSession() async {
     final access = await _storage.getAccessToken();
     if (access == null || access.isEmpty) return null;
@@ -226,6 +259,10 @@ class AuthRepository {
       await _ensureGoogleInitialized();
       await _googleSignIn.signOut();
     } catch (_) {}
+  }
+
+  Future<void> dispose() async {
+    await _authEventsSub?.cancel();
   }
 
   // ── Приватные хелперы ─────────────────────────────────────

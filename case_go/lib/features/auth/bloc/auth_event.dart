@@ -28,6 +28,22 @@ final class GoogleSignInRequested extends AuthEvent {
   const GoogleSignInRequested();
 }
 
+/// Пришёл результат авторизации из Google auth stream (веб через GIS button).
+final class GoogleStreamAuthenticated extends AuthEvent {
+  final AuthUser user;
+  final bool needsProfileSetup;
+  const GoogleStreamAuthenticated({
+    required this.user,
+    required this.needsProfileSetup,
+  });
+}
+
+/// Ошибка из Google auth stream.
+final class GoogleStreamErrored extends AuthEvent {
+  final String message;
+  const GoogleStreamErrored(this.message);
+}
+
 /// Переключение между формами логина и регистрации.
 final class AuthModeToggled extends AuthEvent {
   const AuthModeToggled();

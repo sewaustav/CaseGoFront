@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
+import 'package:case_go/features/auth/ui/google_button.dart';
 import 'package:case_go/features/home/home_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 
@@ -171,25 +173,30 @@ class _AuthViewState extends State<_AuthView> {
                   ),
                   const SizedBox(height: 12),
 
-                  SizedBox(
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: isLoading
-                          ? null
-                          : () => context
-                              .read<AuthBloc>()
-                              .add(const GoogleSignInRequested()),
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: const Text('Войти через Google'),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                            color: palette.contrastBg.withOpacity(0.2)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  if (kIsWeb)
+                    // На вебе google_sign_in v7 не поддерживает программный
+                    // authenticate() — только Google-рендеренная кнопка.
+                    Center(child: buildGoogleSignInButton())
+                  else
+                    SizedBox(
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () => context
+                                .read<AuthBloc>()
+                                .add(const GoogleSignInRequested()),
+                        icon: const Icon(Icons.g_mobiledata, size: 28),
+                        label: const Text('Войти через Google'),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: palette.contrastBg.withOpacity(0.2)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 24),
 
                   TextButton(
