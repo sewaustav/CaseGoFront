@@ -15,7 +15,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginSubmitted>(_onLogin);
     on<RegisterSubmitted>(_onRegister);
     on<GoogleSignInRequested>(_onGoogleSignIn);
+    on<GoogleStreamAuthenticated>(_onGoogleStreamAuthenticated);
+    on<GoogleStreamErrored>(_onGoogleStreamErrored);
     on<AuthModeToggled>(_onModeToggled);
+
+    // Подписываемся на Google auth events — нужно для веба (GIS button).
+    _repository.initGoogleAuthListener(
+      onSignIn: (user, needsSetup) {
+        add(GoogleStreamAuthenticated(
+            user: user, needsProfileSetup: needsSetup));
+      },
+      onError: (message) {
+        add(GoogleStreamErrored(message));
+      },
+    );
   }
 
   AuthMode get _mode => switch (state) {
@@ -74,6 +87,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       emit(AuthError(message: 'Неизвестная ошибка: $e', mode: _mode));
     }
+  }
+
+  void _onGoogleStreamAuthenticated(
+      GoogleStreamAuthenticated event, Emitter<AuthState> emit) {
+    emit(AuthAuthenticated(
+        user: event.user, needsProfileSetup: event.needsProfileSetup));
+  }
+
+  void _onGoogleStreamErrored(
+      GoogleStreamErrored event, Emitter<AuthState> emit) {
+    emit(AuthError(message: event.message, mode: _mode));
   }
 
   void _onModeToggled(AuthModeToggled event, Emitter<AuthState> emit) {
