@@ -29,7 +29,10 @@ class AuthRepository {
 
   Future<void> _ensureGoogleInitialized() async {
     if (_googleInitialized) return;
-    await _googleSignIn.initialize(serverClientId: _webClientId);
+    await _googleSignIn.initialize(
+      clientId: _webClientId,
+      serverClientId: _webClientId,
+    );
     _googleInitialized = true;
   }
 
