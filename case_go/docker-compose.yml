@@ -9,5 +9,5 @@ services:
       - "443:443"
     volumes:
      - /etc/letsencrypt:/etc/letsencrypt:ro
-     - /opt/3x-ui/subscription/sub.json:/usr/share/nginx/html/sub.json:ro
+     - /opt/3x-ui/subscription:/usr/share/nginx/html/sub:ro
     restart: unless-stopped
