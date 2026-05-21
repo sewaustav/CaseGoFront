@@ -98,6 +98,42 @@ class CaseGo extends StatelessWidget {
           useMaterial3: true,
           scaffoldBackgroundColor: AppPalette.defaultPalette.background,
           extensions: const [AppPalette.defaultPalette],
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF6366F1),
+            primary: const Color(0xFF6366F1),
+            secondary: const Color(0xFFF97316),
+            tertiary: const Color(0xFFEC4899),
+            surface: const Color(0xFFF8F7FF),
+          ),
+          fontFamily: 'Roboto',
+          textTheme: const TextTheme(
+            displayLarge: TextStyle(
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.5,
+            ),
+            headlineMedium: TextStyle(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+            titleLarge: TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            filled: true,
+            fillColor: Color(0xFFFFFFFF),
+          ),
         ),
       ),
     );
