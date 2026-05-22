@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:case_go/core/theme/app_palete.dart';
+import 'package:case_go/core/widgets/casey_mascot.dart';
+import 'package:case_go/core/widgets/clay_button.dart';
 import 'package:case_go/features/auth/bloc/auth_bloc.dart';
 import 'package:case_go/features/auth/ui/google_button.dart';
 import 'package:case_go/features/home/home_bloc.dart';
@@ -12,9 +14,7 @@ class AuthScreen extends StatelessWidget {
   const AuthScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const _AuthView();
-  }
+  Widget build(BuildContext context) => const _AuthView();
 }
 
 class _AuthView extends StatefulWidget {
@@ -25,32 +25,29 @@ class _AuthView extends StatefulWidget {
 }
 
 class _AuthViewState extends State<_AuthView> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
+  final _emailCtrl    = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _nameCtrl     = TextEditingController();
+  bool _showPassword  = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _nameCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final palette =
-        Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
-
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
           context.read<HomeBloc>().add(AppStarted());
           if (state.needsProfileSetup) {
-            context.go(
-              '/profile/setup',
-              extra: const ProfileSetupExtra(mode: ProfileSetupMode.create),
-            );
+            context.go('/profile/setup',
+                extra: const ProfileSetupExtra(
+                    mode: ProfileSetupMode.create));
           } else {
             context.go('/');
           }
@@ -59,461 +56,468 @@ class _AuthViewState extends State<_AuthView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppPalette.accentWarm,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(14)),
+              margin:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           );
         }
       },
       builder: (context, state) {
         final isLogin = switch (state) {
-          AuthIdle(:final mode) => mode == AuthMode.login,
+          AuthIdle(:final mode)    => mode == AuthMode.login,
           AuthLoading(:final mode) => mode == AuthMode.login,
-          AuthError(:final mode) => mode == AuthMode.login,
-          _ => true,
+          AuthError(:final mode)   => mode == AuthMode.login,
+          _                        => true,
         };
         final isLoading = state is AuthLoading;
 
         return Scaffold(
-          backgroundColor: palette.background,
-          body: Stack(
-            children: [
-              // ── Декоративный фон ────────────────────────────────────────
-              _buildBackground(palette),
+          backgroundColor: AppPalette.defaultPalette.background,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 80, 22, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Маскот Кейси с float-анимацией ─────────────────────
+                  Center(
+                    child: CaseyMascot(
+                      size: 132,
+                      expression: 'happy',
+                      animate: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
-              // ── Контент ─────────────────────────────────────────────────
-              SafeArea(
-                child: Column(
-                  children: [
-                    // Кнопка назад
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: GestureDetector(
-                          onTap: () => context.go('/'),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                  // ── Лого ────────────────────────────────────────────────
+                  const Center(child: _CaseGoLogo(size: 28)),
+                  const SizedBox(height: 22),
+
+                  // ── Заголовок ────────────────────────────────────────────
+                  Text(
+                    isLogin ? 'С возвращением!' : 'Создать аккаунт',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Unbounded',
+                      fontFamilyFallback: ['Roboto'],
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      color: AppPalette.ink,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isLogin
+                        ? 'Кейси соскучился. Войдите чтобы продолжить.'
+                        : 'Регистрация займёт меньше минуты.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Onest',
+                      fontFamilyFallback: ['Roboto'],
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.ink2,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // ── Clay-карточка с формой ───────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: AppPalette.clay(
+                      color: AppPalette.defaultPalette.surface,
+                      radius: 28,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Поле Имя (только при регистрации)
+                        if (!isLogin) ...[
+                          _ClayTextField(
+                            controller: _nameCtrl,
+                            placeholder: 'Ваше имя',
+                            icon: Icons.person_outline_rounded,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Email
+                        _ClayTextField(
+                          controller: _emailCtrl,
+                          placeholder: 'email@example.com',
+                          icon: Icons.mail_outline_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Пароль
+                        _ClayTextField(
+                          controller: _passwordCtrl,
+                          placeholder: 'Пароль',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: !_showPassword,
+                          trailing: GestureDetector(
+                            onTap: () =>
+                                setState(() => _showPassword = !_showPassword),
+                            child: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppPalette.ink3,
+                              size: 20,
                             ),
-                            child: Icon(Icons.arrow_back,
-                                color: palette.contrastBg, size: 20),
                           ),
                         ),
-                      ),
-                    ),
+                        const SizedBox(height: 20),
 
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 20),
-
-                            // ── Лого ────────────────────────────────────
-                            Center(
-                              child: Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  gradient: AppPalette.primaryGradient,
-                                  borderRadius: BorderRadius.circular(22),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          palette.primaryBtn.withOpacity(0.4),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(Icons.work_rounded,
-                                    color: Colors.white, size: 36),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            ShaderMask(
-                              shaderCallback: (bounds) =>
-                                  AppPalette.primaryGradient
-                                      .createShader(bounds),
-                              child: const Text(
-                                'Case Go',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: -1,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              isLogin ? 'Вход в аккаунт' : 'Создать аккаунт',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: palette.contrastBg.withOpacity(0.5),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 36),
-
-                            // ── Форма ────────────────────────────────────
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.06),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 4),
+                        // Кнопка Войти / Зарегистрироваться
+                        ClayButton(
+                          colorScheme: 'primary',
+                          size: ClayButtonSize.lg,
+                          fullWidth: true,
+                          leadingIcon: isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFFAF6EC),
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  if (!isLogin) ...[
-                                    _buildTextField(
-                                      controller: _nameController,
-                                      label: 'Имя',
-                                      icon: Icons.person_outline_rounded,
-                                      palette: palette,
-                                    ),
-                                    const SizedBox(height: 14),
-                                  ],
-                                  _buildTextField(
-                                    controller: _emailController,
-                                    label: 'Email',
-                                    icon: Icons.email_outlined,
-                                    palette: palette,
-                                    keyboardType: TextInputType.emailAddress,
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _buildTextField(
-                                    controller: _passwordController,
-                                    label: 'Пароль',
-                                    icon: Icons.lock_outline_rounded,
-                                    palette: palette,
-                                    obscureText: true,
-                                  ),
-                                  const SizedBox(height: 24),
-
-                                  // ── Кнопка входа/регистрации ──────────
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 54,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: isLoading
-                                            ? null
-                                            : AppPalette.primaryGradient,
-                                        color: isLoading
-                                            ? palette.surface
-                                            : null,
-                                        borderRadius:
-                                            BorderRadius.circular(16),
-                                        boxShadow: isLoading
-                                            ? null
-                                            : [
-                                                BoxShadow(
-                                                  color: palette.primaryBtn
-                                                      .withOpacity(0.4),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                      ),
-                                      child: ElevatedButton(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () =>
-                                                _submit(context, isLogin),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                          ),
-                                        ),
-                                        child: isLoading
-                                            ? SizedBox(
-                                                height: 20,
-                                                width: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: palette.primaryBtn,
-                                                ),
-                                              )
-                                            : Text(
-                                                isLogin
-                                                    ? 'Войти'
-                                                    : 'Зарегистрироваться',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 16,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // ── Разделитель ───────────────────────
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Divider(
-                                            color: palette.contrastBg
-                                                .withOpacity(0.1)),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12),
-                                        child: Text(
-                                          'или',
-                                          style: TextStyle(
-                                            color: palette.contrastBg
-                                                .withOpacity(0.4),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Divider(
-                                            color: palette.contrastBg
-                                                .withOpacity(0.1)),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // ── Google ────────────────────────────
-                                  if (kIsWeb)
-                                    Center(child: buildGoogleSignInButton())
-                                  else
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 54,
-                                      child: OutlinedButton.icon(
-                                        onPressed: isLoading
-                                            ? null
-                                            : () => context
-                                                .read<AuthBloc>()
-                                                .add(const GoogleSignInRequested()),
-                                        icon: const Icon(Icons.g_mobiledata,
-                                            size: 28),
-                                        label:
-                                            const Text('Войти через Google'),
-                                        style: OutlinedButton.styleFrom(
-                                          side: BorderSide(
-                                            color: palette.contrastBg
-                                                .withOpacity(0.15),
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            // ── Переключение режима ───────────────────────
-                            Center(
-                              child: GestureDetector(
-                                onTap: isLoading
-                                    ? null
-                                    : () => context
-                                        .read<AuthBloc>()
-                                        .add(const AuthModeToggled()),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color:
-                                          palette.contrastBg.withOpacity(0.5),
-                                    ),
-                                    children: [
-                                      TextSpan(
-                                        text: isLogin
-                                            ? 'Нет аккаунта? '
-                                            : 'Уже есть аккаунт? ',
-                                      ),
-                                      TextSpan(
-                                        text: isLogin
-                                            ? 'Зарегистрироваться'
-                                            : 'Войти',
-                                        style: TextStyle(
-                                          color: palette.primaryBtn,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                                )
+                              : const Icon(Icons.arrow_forward_rounded,
+                                  color: Color(0xFFFAF6EC), size: 20),
+                          onTap:
+                              isLoading ? null : () => _submit(context, isLogin),
+                          child: Text(isLogin ? 'Войти' : 'Зарегистрироваться'),
                         ),
+
+                        // Забыли пароль
+                        if (isLogin) ...[
+                          const SizedBox(height: 14),
+                          Center(
+                            child: Text(
+                              'Забыли пароль?',
+                              style: TextStyle(
+                                fontFamily: 'Onest',
+                                fontFamilyFallback: const ['Roboto'],
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppPalette.ink3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  // ── Разделитель «или» ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 22),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: Container(
+                                height: 1.5,
+                                color: AppPalette.line)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'или',
+                            style: TextStyle(
+                              fontFamily: 'Onest',
+                              fontFamilyFallback: const ['Roboto'],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppPalette.ink3,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                            child: Container(
+                                height: 1.5,
+                                color: AppPalette.line)),
+                      ],
+                    ),
+                  ),
+
+                  // ── Google ───────────────────────────────────────────────
+                  if (kIsWeb)
+                    Center(child: buildGoogleSignInButton())
+                  else
+                    ClayButton(
+                      colorScheme: 'surface',
+                      size: ClayButtonSize.md,
+                      fullWidth: true,
+                      leadingIcon: _GoogleIcon(),
+                      onTap: isLoading
+                          ? null
+                          : () => context
+                              .read<AuthBloc>()
+                              .add(const GoogleSignInRequested()),
+                      child: const Text('Продолжить с Google'),
+                    ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Переключение режима ──────────────────────────────────
+                  GestureDetector(
+                    onTap: isLoading
+                        ? null
+                        : () => context
+                            .read<AuthBloc>()
+                            .add(const AuthModeToggled()),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontFamily: 'Onest',
+                          fontFamilyFallback: ['Roboto'],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppPalette.ink2,
+                        ),
+                        children: [
+                          TextSpan(
+                              text: isLogin
+                                  ? 'Нет аккаунта? '
+                                  : 'Уже есть аккаунт? '),
+                          TextSpan(
+                            text: isLogin ? 'Регистрация' : 'Войти',
+                            style: const TextStyle(
+                              color: AppPalette.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  // ── Декоративный фон ────────────────────────────────────────────────────
+  void _submit(BuildContext context, bool isLogin) {
+    if (isLogin) {
+      context.read<AuthBloc>().add(LoginSubmitted(
+            email: _emailCtrl.text.trim(),
+            password: _passwordCtrl.text,
+          ));
+    } else {
+      context.read<AuthBloc>().add(RegisterSubmitted(
+            name: _nameCtrl.text.trim(),
+            email: _emailCtrl.text.trim(),
+            password: _passwordCtrl.text,
+          ));
+    }
+  }
+}
 
-  Widget _buildBackground(AppPalette palette) {
-    return Stack(
+// ── Вспомогательные виджеты ───────────────────────────────────────────────────
+
+/// Clay-style поле ввода (inset-эффект)
+class _ClayTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String placeholder;
+  final IconData icon;
+  final bool obscureText;
+  final TextInputType keyboardType;
+  final Widget? trailing;
+
+  const _ClayTextField({
+    required this.controller,
+    required this.placeholder,
+    required this.icon,
+    this.obscureText = false,
+    this.keyboardType = TextInputType.text,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClayInset(
+      child: Row(
+        children: [
+          Icon(icon, color: AppPalette.ink3, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              obscureText: obscureText,
+              keyboardType: keyboardType,
+              style: const TextStyle(
+                fontFamily: 'Onest',
+                fontFamilyFallback: ['Roboto'],
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: AppPalette.ink,
+              ),
+              decoration: InputDecoration(
+                hintText: placeholder,
+                hintStyle: const TextStyle(
+                  color: AppPalette.ink3,
+                  fontWeight: FontWeight.w400,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Лого «caseGO» — знак + wordmark
+class _CaseGoLogo extends StatelessWidget {
+  final double size;
+  const _CaseGoLogo({this.size = 28});
+
+  @override
+  Widget build(BuildContext context) {
+    final markSize = size * 1.1;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Positioned(
-          top: -80,
-          right: -60,
-          child: Container(
-            width: 280,
-            height: 280,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  palette.primaryBtn.withOpacity(0.18),
-                  Colors.transparent,
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
+        // Знак: зелёный квадрат с иконкой портфеля
+        Container(
+          width: markSize,
+          height: markSize,
+          decoration: BoxDecoration(
+            color: AppPalette.primary,
+            borderRadius: BorderRadius.circular(markSize * 0.32),
+          ),
+          child: Icon(
+            Icons.work_rounded,
+            color: Colors.white,
+            size: markSize * 0.6,
           ),
         ),
-        Positioned(
-          top: 60,
-          left: -80,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  palette.accent.withOpacity(0.12),
-                  Colors.transparent,
-                ],
-              ),
-              shape: BoxShape.circle,
+        SizedBox(width: size * 0.35),
+        // Wordmark: «case» dark + «go» primary
+        RichText(
+          text: TextSpan(
+            style: TextStyle(
+              fontFamily: 'Unbounded',
+              fontFamilyFallback: const ['Roboto'],
+              fontSize: size,
+              letterSpacing: -0.3,
             ),
-          ),
-        ),
-        Positioned(
-          bottom: 100,
-          right: -50,
-          child: Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  palette.altBtn.withOpacity(0.14),
-                  Colors.transparent,
-                ],
+            children: const [
+              TextSpan(
+                text: 'case',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppPalette.ink,
+                ),
               ),
-              shape: BoxShape.circle,
-            ),
+              TextSpan(
+                text: 'go',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
+}
 
-  // ── Submit ──────────────────────────────────────────────────────────────
-
-  void _submit(BuildContext context, bool isLogin) {
-    if (isLogin) {
-      context.read<AuthBloc>().add(LoginSubmitted(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          ));
-    } else {
-      context.read<AuthBloc>().add(RegisterSubmitted(
-            name: _nameController.text.trim(),
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          ));
-    }
-  }
-
-  // ── Text field ──────────────────────────────────────────────────────────
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required AppPalette palette,
-    bool obscureText = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      style: TextStyle(
-        color: palette.contrastBg,
-        fontWeight: FontWeight.w500,
-        fontSize: 15,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          color: palette.contrastBg.withOpacity(0.4),
-          fontWeight: FontWeight.w500,
-        ),
-        prefixIcon: Icon(icon, color: palette.primaryBtn.withOpacity(0.6), size: 20),
-        filled: true,
-        fillColor: palette.surface.withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-              color: palette.contrastBg.withOpacity(0.08), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: palette.primaryBtn, width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      ),
+/// Google-иконка для кнопки «Продолжить с Google»
+class _GoogleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: CustomPaint(painter: _GooglePainter()),
     );
   }
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 24;
+    canvas.scale(s, s);
+    // Blue
+    canvas.drawPath(
+      Path()
+        ..moveTo(22.5, 12.3)
+        ..cubicTo(22.5, 11.5, 22.4, 10.8, 22.3, 10.1)
+        ..lineTo(12, 10.1)
+        ..lineTo(12, 14.3)
+        ..lineTo(17.9, 14.3)
+        ..cubicTo(17.6, 15.7, 16.9, 16.9, 15.7, 17.7)
+        ..lineTo(15.7, 20.5)
+        ..lineTo(19.3, 20.5)
+        ..cubicTo(21.4, 18.6, 22.5, 15.7, 22.5, 12.3)
+        ..close(),
+      Paint()..color = const Color(0xFF4285F4),
+    );
+    // Green
+    canvas.drawPath(
+      Path()
+        ..moveTo(12, 23)
+        ..cubicTo(14.9, 23, 17.4, 22, 19.2, 20.4)
+        ..lineTo(15.6, 17.6)
+        ..cubicTo(14.6, 18.3, 13.3, 18.7, 12, 18.7)
+        ..cubicTo(9.2, 18.7, 6.9, 16.8, 6, 14.3)
+        ..lineTo(2.3, 14.3)
+        ..lineTo(2.3, 17.1)
+        ..cubicTo(4.1, 20.6, 7.8, 23, 12, 23)
+        ..close(),
+      Paint()..color = const Color(0xFF34A853),
+    );
+    // Yellow
+    canvas.drawPath(
+      Path()
+        ..moveTo(6, 14.3)
+        ..cubicTo(5.8, 13.6, 5.6, 12.8, 5.6, 12)
+        ..cubicTo(5.6, 11.2, 5.7, 10.4, 6, 9.7)
+        ..lineTo(6, 6.9)
+        ..lineTo(2.3, 6.9)
+        ..cubicTo(1.5, 8.4, 1, 10.2, 1, 12)
+        ..cubicTo(1, 13.8, 1.5, 15.6, 2.3, 17.1)
+        ..close(),
+      Paint()..color = const Color(0xFFFBBC04),
+    );
+    // Red
+    canvas.drawPath(
+      Path()
+        ..moveTo(12, 5.3)
+        ..cubicTo(13.6, 5.3, 15, 5.8, 16.2, 6.9)
+        ..lineTo(19.4, 4)
+        ..cubicTo(17.4, 2.1, 14.9, 1, 12, 1)
+        ..cubicTo(7.8, 1, 4.1, 3.4, 2.3, 6.9)
+        ..lineTo(6, 9.7)
+        ..cubicTo(6.9, 7.2, 9.2, 5.3, 12, 5.3)
+        ..close(),
+      Paint()..color = const Color(0xFFEA4335),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GooglePainter _) => false;
 }

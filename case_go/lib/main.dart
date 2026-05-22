@@ -96,43 +96,81 @@ class CaseGo extends StatelessWidget {
         routerConfig: AppRouter.createRouter(homeBloc),
         theme: ThemeData(
           useMaterial3: true,
+          // ── Sage palette ────────────────────────────────────────────
           scaffoldBackgroundColor: AppPalette.defaultPalette.background,
           extensions: const [AppPalette.defaultPalette],
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6366F1),
-            primary: const Color(0xFF6366F1),
-            secondary: const Color(0xFFF97316),
-            tertiary: const Color(0xFFEC4899),
-            surface: const Color(0xFFF8F7FF),
+            seedColor: AppPalette.primary,
+            primary: AppPalette.primary,
+            secondary: AppPalette.accentWarm,
+            tertiary: AppPalette.accentYellow,
+            surface: AppPalette.defaultPalette.surface,
+            onPrimary: const Color(0xFFFAF6EC),
+            onSurface: AppPalette.ink,
           ),
-          fontFamily: 'Roboto',
+          // ── Базовый шрифт UI ────────────────────────────────────────
+          fontFamily: 'Onest',
           textTheme: const TextTheme(
             displayLarge: TextStyle(
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
+              fontFamily: 'Unbounded',
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1.0,
+              color: AppPalette.ink,
             ),
             headlineMedium: TextStyle(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+              fontFamily: 'Unbounded',
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+              color: AppPalette.ink,
             ),
             titleLarge: TextStyle(
+              fontFamily: 'Unbounded',
               fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: AppPalette.ink,
+            ),
+            bodyLarge: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppPalette.ink,
+            ),
+            bodyMedium: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppPalette.ink2,
             ),
           ),
+          // ── Кнопки ──────────────────────────────────────────────────
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              shape: RoundedRectangleBorder(
+              backgroundColor: AppPalette.primary,
+              foregroundColor: const Color(0xFFFAF6EC),
+              shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),
             ),
           ),
-          inputDecorationTheme: InputDecorationTheme(
+          // ── Поля ввода ───────────────────────────────────────────────
+          inputDecorationTheme: const InputDecorationTheme(
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide.none,
             ),
             filled: true,
-            fillColor: Color(0xFFFFFFFF),
+            fillColor: Color(0xFFE2DCCB), // AppPalette.bg2
+          ),
+          // ── AppBar ───────────────────────────────────────────────────
+          appBarTheme: AppBarTheme(
+            backgroundColor: AppPalette.defaultPalette.background,
+            foregroundColor: AppPalette.ink,
+            elevation: 0,
+            centerTitle: false,
+            titleTextStyle: const TextStyle(
+              fontFamily: 'Unbounded',
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppPalette.ink,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),

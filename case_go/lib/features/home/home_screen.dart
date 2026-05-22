@@ -1,298 +1,201 @@
 import 'package:case_go/core/theme/app_palete.dart';
+import 'package:case_go/core/widgets/casey_mascot.dart';
+import 'package:case_go/core/widgets/clay_button.dart';
 import 'package:case_go/features/home/home_bloc.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+// ── Статические данные категорий ──────────────────────────────────────────────
+
+const _categories = [
+  _Category(
+    key: 'comm',
+    label: 'Коммуникация',
+    count: 5,
+    color: AppPalette.catCommColor,
+    bg: AppPalette.catCommBg,
+    icon: Icons.chat_bubble_outline_rounded,
+  ),
+  _Category(
+    key: 'lead',
+    label: 'Лидерство',
+    count: 7,
+    color: AppPalette.catLeadColor,
+    bg: AppPalette.catLeadBg,
+    icon: Icons.emoji_events_outlined,
+  ),
+  _Category(
+    key: 'neg',
+    label: 'Переговоры',
+    count: 4,
+    color: AppPalette.catNegColor,
+    bg: AppPalette.catNegBg,
+    icon: Icons.people_outline_rounded,
+  ),
+  _Category(
+    key: 'conf',
+    label: 'Конфликты',
+    count: 6,
+    color: AppPalette.catConfColor,
+    bg: AppPalette.catConfBg,
+    icon: Icons.track_changes_rounded,
+  ),
+];
+
+class _Category {
+  final String key;
+  final String label;
+  final int count;
+  final Color color;
+  final Color bg;
+  final IconData icon;
+  const _Category({
+    required this.key,
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.bg,
+    required this.icon,
+  });
+}
+
+// ── Экран ─────────────────────────────────────────────────────────────────────
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Доброе утро';
+    if (h < 18) return 'Добрый день';
+    return 'Добрый вечер';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final palette =
-        Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
-
     return BlocListener<HomeBloc, HomeState>(
       listener: (context, state) {
-        if (state is Unauthenticated) {
-          context.go('/auth');
-        }
+        if (state is Unauthenticated) context.go('/auth');
         if (state is AuthenticatedNeedsProfile) {
-          context.go(
-            '/profile/setup',
-            extra: const ProfileSetupExtra(mode: ProfileSetupMode.create),
-          );
+          context.go('/profile/setup',
+              extra:
+                  const ProfileSetupExtra(mode: ProfileSetupMode.create));
         }
       },
       child: Scaffold(
-        backgroundColor: palette.background,
+        backgroundColor: AppPalette.defaultPalette.background,
         body: Stack(
           children: [
             CustomScrollView(
               slivers: [
-                _buildAppBar(context, palette),
-                SliverToBoxAdapter(child: _buildHeroSection(context, palette)),
-                SliverToBoxAdapter(child: _buildActionGrid(context, palette)),
-                SliverToBoxAdapter(child: _buildWelcomeBanner(context, palette)),
-                SliverToBoxAdapter(child: _buildQuickActions(context, palette)),
+                _buildTopBar(context),
+                SliverToBoxAdapter(child: _buildGreeting(context)),
+                SliverToBoxAdapter(child: _buildStats(context)),
+                SliverToBoxAdapter(child: _buildHeroCard(context)),
+                SliverToBoxAdapter(child: _buildCategories(context)),
+                SliverToBoxAdapter(child: _buildQuickActions(context)),
                 const SliverToBoxAdapter(child: SizedBox(height: 110)),
               ],
             ),
-            _buildFloatingBottomBar(context, palette),
+            _buildBottomNav(context),
           ],
         ),
       ),
     );
   }
 
-  // ── AppBar ────────────────────────────────────────────────────────────────
+  // ── Top Bar ─────────────────────────────────────────────────────────────────
 
-  Widget _buildAppBar(BuildContext context, AppPalette palette) {
-    return SliverAppBar(
-      backgroundColor: palette.background,
-      floating: true,
-      elevation: 0,
-      centerTitle: false,
-      title: ShaderMask(
-        shaderCallback: (bounds) =>
-            AppPalette.primaryGradient.createShader(bounds),
-        child: const Text(
-          'Case Go',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
-          ),
-        ),
-      ),
-      actions: [
-        BlocBuilder<HomeBloc, HomeState>(
-          builder: (context, state) {
-            final isAuth = state is Authenticated;
-            return Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: PopupMenuButton<String>(
-                offset: const Offset(0, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'login':
-                    case 'reg':
-                      context.push('/auth');
-                    case 'profile':
-                      context.push('/profile');
-                    case 'history':
-                      context.push('/history');
-                    case 'admin':
-                      context.push('/admin');
-                    case 'logout':
-                      context.read<HomeBloc>().add(LogoutRequested());
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: isAuth ? AppPalette.primaryGradient : null,
-                    color: isAuth ? null : palette.surface,
-                    shape: BoxShape.circle,
-                    boxShadow: isAuth
-                        ? [
-                            BoxShadow(
-                              color: palette.primaryBtn.withOpacity(0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            )
-                          ]
-                        : null,
-                  ),
-                  child: Icon(
-                    isAuth ? Icons.person : Icons.person_outline,
-                    color: isAuth ? Colors.white : palette.primaryBtn,
-                    size: 22,
-                  ),
-                ),
-                itemBuilder: (context) {
-                  final role = isAuth
-                      ? (state as Authenticated).user['role'] as int? ?? 1
-                      : 1;
-                  return isAuth
-                      ? [
-                          PopupMenuItem(
-                            value: 'profile',
-                            child: _menuRow(
-                                Icons.person, 'Профиль', palette.primaryBtn),
-                          ),
-                          PopupMenuItem(
-                            value: 'history',
-                            child: _menuRow(
-                                Icons.history, 'История', palette.altBtn),
-                          ),
-                          if (role == 0)
-                            PopupMenuItem(
-                              value: 'admin',
-                              child: _menuRow(Icons.admin_panel_settings,
-                                  'Админка', palette.accent),
-                            ),
-                          PopupMenuItem(
-                            value: 'logout',
-                            child: _menuRow(
-                                Icons.logout, 'Выйти', Colors.red.shade400,
-                                textColor: Colors.red.shade400),
-                          ),
-                        ]
-                      : [
-                          PopupMenuItem(
-                            value: 'login',
-                            child: _menuRow(
-                                Icons.login, 'Войти', palette.primaryBtn),
-                          ),
-                          PopupMenuItem(
-                            value: 'reg',
-                            child: _menuRow(
-                                Icons.person_add, 'Регистрация', palette.altBtn),
-                          ),
-                        ];
-                },
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _menuRow(IconData icon, String label, Color color,
-      {Color? textColor}) {
-    return Row(children: [
-      Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, size: 16, color: color),
-      ),
-      const SizedBox(width: 10),
-      Text(label, style: TextStyle(color: textColor)),
-    ]);
-  }
-
-  // ── Hero (авторизован) ────────────────────────────────────────────────────
-
-  Widget _buildHeroSection(BuildContext context, AppPalette palette) {
-    return BlocBuilder<HomeBloc, HomeState>(
-      builder: (context, state) {
-        if (state is! Authenticated) return const SizedBox.shrink();
-        final username = state.user['username'] as String? ??
-            state.user['email'] as String? ??
-            'друг';
-
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-          height: 200,
-          decoration: BoxDecoration(
-            gradient: AppPalette.heroGradient,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: palette.primaryBtn.withOpacity(0.4),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: -30,
-                right: -20,
-                child: _DecorCircle(
-                    size: 130, color: Colors.white.withOpacity(0.08)),
-              ),
-              Positioned(
-                bottom: -40,
-                right: 50,
-                child: _DecorCircle(
-                    size: 100, color: Colors.white.withOpacity(0.06)),
-              ),
-              Positioned(
-                top: 20,
-                right: 30,
-                child: _DecorCircle(
-                    size: 40, color: Colors.white.withOpacity(0.12)),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Привет, $username 👋',
+  Widget _buildTopBar(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 56, 20, 0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _CaseGoLogo(size: 22),
+            BlocBuilder<HomeBloc, HomeState>(
+              builder: (context, state) {
+                final isAuth = state is Authenticated;
+                final initials = isAuth
+                    ? _initials((state).user['username'] as String? ??
+                        (state).user['email'] as String? ??
+                        'U')
+                    : '?';
+                return GestureDetector(
+                  onTap: () => isAuth
+                      ? context.push('/profile')
+                      : context.push('/auth'),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: AppPalette.claySoft(
+                      color: AppPalette.primaryTint,
+                      radius: 14,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
+                        fontFamily: 'Unbounded',
+                        fontFamilyFallback: ['Roboto'],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppPalette.primaryDeep,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Готов прокачать soft skills?\nВыбери кейс и начни тренировку.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => context.push('/cases'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Начать тренировку',
-                              style: TextStyle(
-                                color: palette.primaryBtn,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: palette.primaryBtn.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.arrow_forward,
-                                  color: palette.primaryBtn, size: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Приветствие ─────────────────────────────────────────────────────────────
+
+  Widget _buildGreeting(BuildContext context) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        final username = state is Authenticated
+            ? (state.user['username'] as String? ??
+                  state.user['email'] as String? ??
+                  'друг')
+            : null;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _greeting,
+                style: const TextStyle(
+                  fontFamily: 'Onest',
+                  fontFamilyFallback: ['Roboto'],
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.ink2,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                username != null
+                    ? '$username 👋'
+                    : 'Case Go 👋',
+                style: const TextStyle(
+                  fontFamily: 'Unbounded',
+                  fontFamilyFallback: ['Roboto'],
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                  color: AppPalette.ink,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -302,101 +205,44 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ── Welcome (не авторизован) ──────────────────────────────────────────────
+  // ── Трио стат ───────────────────────────────────────────────────────────────
 
-  Widget _buildWelcomeBanner(BuildContext context, AppPalette palette) {
+  Widget _buildStats(BuildContext context) {
     return BlocBuilder<HomeBloc, HomeState>(
       builder: (context, state) {
-        if (state is Authenticated) return const SizedBox.shrink();
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: AppPalette.heroGradient,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: palette.primaryBtn.withOpacity(0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Stack(
+        if (state is! Authenticated) return const SizedBox(height: 16);
+        final u = state.user;
+        final streak = u['streak'] as int? ?? 0;
+        final xp = u['xp'] as int? ?? 0;
+        final level = u['level'] as int? ?? 1;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          child: Row(
             children: [
-              Positioned(
-                top: -20,
-                right: -15,
-                child: _DecorCircle(
-                    size: 110, color: Colors.white.withOpacity(0.07)),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      '✨ Добро пожаловать',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Case Go',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Тренажёр мягких навыков',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: () => context.push('/auth'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Начать бесплатно',
-                            style: TextStyle(
-                              color: palette.primaryBtn,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(Icons.arrow_forward,
-                              color: palette.primaryBtn, size: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              Expanded(
+                  child: _StatPill(
+                icon: Icons.local_fire_department_rounded,
+                iconColor: AppPalette.accentWarm,
+                value: '$streak',
+                label: 'дней',
+              )),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: _StatPill(
+                icon: Icons.bolt_rounded,
+                iconColor: AppPalette.accentYellow,
+                value: '$xp',
+                label: 'XP',
+              )),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: _StatPill(
+                icon: Icons.emoji_events_rounded,
+                iconColor: AppPalette.accentPurple,
+                value: 'L$level',
+                label: 'уровень',
+              )),
             ],
           ),
         );
@@ -404,30 +250,136 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ── Action grid ───────────────────────────────────────────────────────────
+  // ── Hero-карточка «Сегодняшний вызов» ───────────────────────────────────────
 
-  Widget _buildActionGrid(BuildContext context, AppPalette palette) {
+  Widget _buildHeroCard(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _GradientActionCard(
-              gradient: AppPalette.primaryGradient,
-              shadowColor: palette.primaryBtn,
-              icon: Icons.rocket_launch_rounded,
-              label: 'Начать\nтренировку',
-              onTap: () => context.push('/cases'),
+          const _SectionTitle('Сегодняшний вызов'),
+          const SizedBox(height: 10),
+          Container(
+            decoration: AppPalette.clayDeep(
+              color: AppPalette.primary,
+              radius: 28,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _GradientActionCard(
-              gradient: AppPalette.warmGradient,
-              shadowColor: palette.altBtn,
-              icon: Icons.bar_chart_rounded,
-              label: 'Мой\nпрофиль',
-              onTap: () => context.push('/profile'),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                // Декоративные блобы
+                Positioned(
+                  right: -30,
+                  top: -30,
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: const BoxDecoration(
+                      color: Color(0x2EA8D5BA),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 40,
+                  bottom: -50,
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: const BoxDecoration(
+                      color: Color(0x33FFC857),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                // Контент
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Eyebrow
+                            Row(
+                              children: [
+                                const Icon(Icons.auto_awesome_rounded,
+                                    color: AppPalette.accentYellow, size: 14),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'ЕЖЕДНЕВНЫЙ КЕЙС',
+                                  style: TextStyle(
+                                    fontFamily: 'Onest',
+                                    fontFamilyFallback: ['Roboto'],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppPalette.accentYellow,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Сложный разговор\nс подчинённым',
+                              style: TextStyle(
+                                fontFamily: 'Unbounded',
+                                fontFamilyFallback: ['Roboto'],
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFFAF6EC),
+                                letterSpacing: -0.3,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            // Meta chips
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: const [
+                                _MetaChip(
+                                    icon: Icons.schedule_rounded,
+                                    text: '8 мин'),
+                                _MetaChip(
+                                    icon: Icons.bolt_rounded,
+                                    text: '+120 XP',
+                                    iconColor: AppPalette.accentYellow),
+                                _DifficultyChip(level: 2),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            // CTA
+                            ClayButton(
+                              colorScheme: 'yellow',
+                              size: ClayButtonSize.md,
+                              leadingIcon: const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 18,
+                                  color: Color(0xFF3A2A0A)),
+                              onTap: () => context.push('/cases'),
+                              child: const Text('Начать'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Кейси cheer
+                      Padding(
+                        padding: const EdgeInsets.only(right: -4, bottom: -8),
+                        child: CaseyMascot(
+                          size: 86,
+                          expression: 'cheer',
+                          accentColor: AppPalette.primarySoft,
+                          animate: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -435,44 +387,83 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ── Quick actions ─────────────────────────────────────────────────────────
+  // ── Категории 2×2 ───────────────────────────────────────────────────────────
 
-  Widget _buildQuickActions(BuildContext context, AppPalette palette) {
+  Widget _buildCategories(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Быстрые действия',
-            style: TextStyle(
-              color: palette.contrastBg,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const _SectionTitle('Категории'),
+              GestureDetector(
+                onTap: () => context.push('/cases'),
+                child: const Text(
+                  'Все →',
+                  style: TextStyle(
+                    fontFamily: 'Onest',
+                    fontFamilyFallback: ['Roboto'],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppPalette.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _QuickActionTile(
-            palette: palette,
-            gradient: AppPalette.primaryGradient,
+          const SizedBox(height: 10),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.5,
+            children: _categories
+                .map((cat) => _CategoryCard(
+                      category: cat,
+                      onTap: () => context.push('/cases'),
+                    ))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Быстрые действия ────────────────────────────────────────────────────────
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle('Быстрые действия'),
+          const SizedBox(height: 10),
+          _QuickTile(
             icon: Icons.work_rounded,
+            iconBg: AppPalette.catCommBg,
+            iconColor: AppPalette.catCommColor,
             title: 'Все кейсы',
             subtitle: 'Выберите кейс для тренировки',
             onTap: () => context.push('/cases'),
           ),
-          _QuickActionTile(
-            palette: palette,
-            gradient: AppPalette.warmGradient,
+          _QuickTile(
             icon: Icons.history_rounded,
+            iconBg: AppPalette.accentSoft,
+            iconColor: AppPalette.accentDeep,
             title: 'История',
             subtitle: 'Посмотреть прошлые сессии',
             onTap: () => context.push('/history'),
           ),
-          _QuickActionTile(
-            palette: palette,
-            gradient: AppPalette.accentGradient,
-            icon: Icons.lightbulb_rounded,
+          _QuickTile(
+            icon: Icons.lightbulb_outline_rounded,
+            iconBg: const Color(0xFFD9D2F4),
+            iconColor: AppPalette.catNegColor,
             title: 'Инструкция',
             subtitle: 'Как правильно проходить кейсы',
             onTap: () => context.push('/instructions'),
@@ -482,188 +473,342 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ── Floating bottom bar ───────────────────────────────────────────────────
+  // ── Bottom Nav ──────────────────────────────────────────────────────────────
 
-  Widget _buildFloatingBottomBar(BuildContext context, AppPalette palette) {
+  Widget _buildBottomNav(BuildContext context) {
     return Positioned(
       bottom: 20,
-      left: 20,
-      right: 20,
+      left: 12,
+      right: 12,
       child: Container(
-        height: 70,
-        decoration: BoxDecoration(
-          color: palette.contrastBg,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: palette.contrastBg.withOpacity(0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+        height: 68,
+        decoration: AppPalette.clay(
+          color: AppPalette.defaultPalette.surface,
+          radius: 26,
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _BottomBarItem(
-              icon: Icons.bar_chart_rounded,
-              label: 'Профиль',
-              onTap: () => context.push('/profile'),
+            _NavItem(
+              icon: Icons.home_rounded,
+              label: 'Тренажёр',
+              active: true,
+              onTap: () {},
             ),
-            GestureDetector(
+            _NavItem(
+              icon: Icons.grid_view_rounded,
+              label: 'Кейсы',
               onTap: () => context.push('/cases'),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: AppPalette.primaryGradient,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.primaryBtn.withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.work_rounded, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Тренажёр',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
-            _BottomBarItem(
+            _NavItem(
               icon: Icons.history_rounded,
               label: 'История',
               onTap: () => context.push('/history'),
+            ),
+            _NavItem(
+              icon: Icons.person_rounded,
+              label: 'Профиль',
+              onTap: () => context.push('/profile'),
             ),
           ],
         ),
       ),
     );
   }
+
+  // ── Утилиты ─────────────────────────────────────────────────────────────────
+
+  static String _initials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+  }
 }
 
-// ── Reusable Widgets ──────────────────────────────────────────────────────────
+// ── Reusable widgets ──────────────────────────────────────────────────────────
 
-class _DecorCircle extends StatelessWidget {
+class _CaseGoLogo extends StatelessWidget {
   final double size;
-  final Color color;
-
-  const _DecorCircle({required this.size, required this.color});
+  const _CaseGoLogo({this.size = 22});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    final markSize = size * 1.2;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: markSize,
+          height: markSize,
+          decoration: BoxDecoration(
+            color: AppPalette.primary,
+            borderRadius: BorderRadius.circular(markSize * 0.32),
+          ),
+          child: Icon(Icons.work_rounded,
+              color: Colors.white, size: markSize * 0.6),
+        ),
+        SizedBox(width: size * 0.36),
+        RichText(
+          text: TextSpan(
+            style: TextStyle(
+              fontFamily: 'Unbounded',
+              fontFamilyFallback: const ['Roboto'],
+              fontSize: size,
+              letterSpacing: -0.3,
+            ),
+            children: const [
+              TextSpan(
+                  text: 'case',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700, color: AppPalette.ink)),
+              TextSpan(
+                  text: 'go',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppPalette.primary)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _GradientActionCard extends StatelessWidget {
-  final LinearGradient gradient;
-  final Color shadowColor;
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontFamily: 'Unbounded',
+        fontFamilyFallback: ['Roboto'],
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+        color: AppPalette.ink,
+      ),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
+  final String value;
   final String label;
+
+  const _StatPill({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: AppPalette.claySoft(
+        color: AppPalette.defaultPalette.surface,
+        radius: 18,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontFamily: 'Unbounded',
+                  fontFamilyFallback: ['Roboto'],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppPalette.ink,
+                  height: 1,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppPalette.ink3,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color? iconColor;
+
+  const _MetaChip({required this.icon, required this.text, this.iconColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final ic = iconColor ?? const Color(0xCCFAF6EC);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0x2FFAF6EC),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: ic),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              fontFamily: 'Onest',
+              fontFamilyFallback: ['Roboto'],
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xCCFAF6EC),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DifficultyChip extends StatelessWidget {
+  final int level; // 1..3
+  const _DifficultyChip({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['', 'легко', 'средне', 'сложно'];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0x2FFAF6EC),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: List.generate(
+              3,
+              (i) => Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(right: 2),
+                decoration: BoxDecoration(
+                  color: i < level
+                      ? AppPalette.accentYellow
+                      : const Color(0x4DFAF6EC),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            labels[level.clamp(1, 3)],
+            style: const TextStyle(
+              fontFamily: 'Onest',
+              fontFamilyFallback: ['Roboto'],
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xCCFAF6EC),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final _Category category;
   final VoidCallback onTap;
 
-  const _GradientActionCard({
-    required this.gradient,
-    required this.shadowColor,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _CategoryCard({required this.category, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor.withOpacity(0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: AppPalette.clay(color: category.bg, radius: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: AppPalette.claySoft(
+                  color: category.color, radius: 12),
+              child: Icon(category.icon, color: Colors.white, size: 20),
+            ),
+            const Spacer(),
+            Text(
+              category.label,
+              style: TextStyle(
+                fontFamily: 'Unbounded',
+                fontFamilyFallback: const ['Roboto'],
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
+                color: AppPalette.ink,
+                height: 1.2,
               ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: -15,
-                right: -15,
-                child: Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${category.count} кейсов',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppPalette.ink2,
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 24),
-                  ),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _QuickActionTile extends StatelessWidget {
-  final AppPalette palette;
-  final LinearGradient gradient;
+class _QuickTile extends StatelessWidget {
   final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const _QuickActionTile({
-    required this.palette,
-    required this.gradient,
+  const _QuickTile({
     required this.icon,
+    required this.iconBg,
+    required this.iconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -675,35 +820,16 @@ class _QuickActionTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.all(14),
+        decoration: AppPalette.clay(
+            color: AppPalette.defaultPalette.surface, radius: 18),
         child: Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradient.colors.first.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 22),
+              width: 44,
+              height: 44,
+              decoration: AppPalette.claySoft(color: iconBg, radius: 13),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -712,32 +838,36 @@ class _QuickActionTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      color: palette.contrastBg,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                    style: const TextStyle(
+                      fontFamily: 'Unbounded',
+                      fontFamilyFallback: ['Roboto'],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppPalette.ink,
+                      letterSpacing: -0.1,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: palette.contrastBg.withOpacity(0.45),
+                    style: const TextStyle(
                       fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppPalette.ink3,
                     ),
                   ),
                 ],
               ),
             ),
             Container(
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(10),
+                color: AppPalette.primaryTint,
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(Icons.chevron_right,
-                  color: palette.primaryBtn, size: 18),
+              child: const Icon(Icons.chevron_right_rounded,
+                  color: AppPalette.primary, size: 18),
             ),
           ],
         ),
@@ -746,35 +876,60 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-class _BottomBarItem extends StatelessWidget {
+class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final bool active;
   final VoidCallback onTap;
 
-  const _BottomBarItem({
+  const _NavItem({
     required this.icon,
     required this.label,
+    this.active = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white.withOpacity(0.7), size: 22),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (active)
+              Container(
+                width: 44,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppPalette.primaryTint,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppPalette.primaryDeep,
+                      offset: Offset(0, 3),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: AppPalette.primary, size: 20),
+              )
+            else
+              Icon(icon, color: AppPalette.ink3, size: 22),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Onest',
+                fontFamilyFallback: const ['Roboto'],
+                fontSize: 10,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: active ? AppPalette.ink : AppPalette.ink3,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
