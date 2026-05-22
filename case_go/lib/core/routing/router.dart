@@ -120,10 +120,17 @@ class AppRouter {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => BlocProvider(
-            create: (_) => HomeCasesCubit(GetIt.I<CaseGoApi>())..load(),
-            child: const HomeScreen(),
-          ),
+          builder: (context, state) {
+            // Используем синглтон из GetIt, чтобы cubit не пересоздавался
+            // при каждом ребилде роутера (свайп назад, обновление токена и т.п.)
+            final cubit = GetIt.I<HomeCasesCubit>();
+            // Загружаем только если данных ещё нет
+            cubit.loadIfNeeded();
+            return BlocProvider.value(
+              value: cubit,
+              child: const HomeScreen(),
+            );
+          },
         ),
 
         GoRoute(

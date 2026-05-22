@@ -34,6 +34,12 @@ class HomeCasesCubit extends Cubit<HomeCasesState> {
 
   HomeCasesCubit(this._api) : super(HomeCasesLoading());
 
+  /// Загружает данные только если ещё не загружались (или была ошибка).
+  /// Вызывай при повторных попаданиях на экран — не перезагрузит, если уже OK.
+  Future<void> loadIfNeeded() async {
+    if (state is! HomeCasesLoaded) await load();
+  }
+
   Future<void> load() async {
     emit(HomeCasesLoading());
     try {

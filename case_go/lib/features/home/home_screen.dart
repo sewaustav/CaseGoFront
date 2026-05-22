@@ -125,7 +125,7 @@ class HomeScreen extends StatelessWidget {
 
                 return GestureDetector(
                   onTap: () => isAuth
-                      ? context.push('/profile')
+                      ? _showUserMenu(context, state as Authenticated)
                       : context.push('/auth'),
                   // Аватар — тёмный clay с белыми инициалами
                   child: Container(
@@ -627,6 +627,42 @@ class HomeScreen extends StatelessWidget {
     }
     return clean.isNotEmpty ? clean[0].toUpperCase() : 'U';
   }
+
+  // ── User Menu ─────────────────────────────────────────────────────────────────
+
+  static void _showUserMenu(BuildContext context, Authenticated state) {
+    final user = state.user;
+    final isAdmin = (user['role'] as int? ?? 1) == 0;
+    final rawName = user['username'] as String? ??
+        user['email'] as String? ??
+        'Пользователь';
+    final displayName =
+        rawName.contains('@') ? rawName.split('@').first : rawName;
+    final initials = _initials(rawName);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _UserMenuSheet(
+        initials: initials,
+        displayName: displayName,
+        isAdmin: isAdmin,
+        onProfile: () {
+          Navigator.of(context).pop();
+          context.push('/profile');
+        },
+        onAdmin: () {
+          Navigator.of(context).pop();
+          context.push('/admin');
+        },
+        onLogout: () {
+          Navigator.of(context).pop();
+          context.read<HomeBloc>().add(LogoutRequested());
+        },
+      ),
+    );
+  }
 }
 
 // ── Hero skeleton (пока грузятся кейсы) ──────────────────────────────────────
@@ -1039,6 +1075,272 @@ class _QuickTile extends StatelessWidget {
     );
   }
 }
+
+// ── User Menu Sheet ──────────────────────────────────────────────────────────
+
+class _UserMenuSheet extends StatelessWidget {
+  final String initials;
+  final String displayName;
+  final bool isAdmin;
+  final VoidCallback onProfile;
+  final VoidCallback onAdmin;
+  final VoidCallback onLogout;
+
+  const _UserMenuSheet({
+    required this.initials,
+    required this.displayName,
+    required this.isAdmin,
+    required this.onProfile,
+    required this.onAdmin,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      decoration: BoxDecoration(
+        color: AppPalette.defaultPalette.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x281A2E22),
+            blurRadius: 32,
+            offset: Offset(0, 16),
+            spreadRadius: -8,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Drag handle
+          const SizedBox(height: 12),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppPalette.ink3.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── Avatar + name header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppPalette.ink,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0xFF0E1A12),
+                        offset: Offset(0, 4),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontFamily: 'Unbounded',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFFAF6EC),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontFamily: 'Unbounded',
+                          fontFamilyFallback: ['Roboto'],
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.ink,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isAdmin)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppPalette.accentYellow.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '✨ Администратор',
+                            style: TextStyle(
+                              fontFamily: 'Onest',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppPalette.accentYellowDeep,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          Divider(
+            height: 1,
+            color: AppPalette.ink.withOpacity(0.07),
+            indent: 20,
+            endIndent: 20,
+          ),
+          const SizedBox(height: 8),
+
+          // ── Профиль
+          _MenuTile(
+            icon: Icons.person_outline_rounded,
+            iconBg: AppPalette.primaryTint,
+            iconColor: AppPalette.primary,
+            title: 'Профиль',
+            subtitle: 'Настройки и достижения',
+            onTap: onProfile,
+          ),
+
+          // ── Администрирование (только для role == 0)
+          if (isAdmin) ...[
+            _MenuTile(
+              icon: Icons.admin_panel_settings_outlined,
+              iconBg: const Color(0xFFE8E2F8),
+              iconColor: const Color(0xFF6B4FCC),
+              title: 'Администрирование',
+              subtitle: 'Управление кейсами и пользователями',
+              onTap: onAdmin,
+            ),
+          ],
+
+          Divider(
+            height: 1,
+            color: AppPalette.ink.withOpacity(0.07),
+            indent: 20,
+            endIndent: 20,
+          ),
+          const SizedBox(height: 8),
+
+          // ── Выйти
+          _MenuTile(
+            icon: Icons.logout_rounded,
+            iconBg: const Color(0xFFFFECEC),
+            iconColor: const Color(0xFFE53935),
+            title: 'Выйти из аккаунта',
+            subtitle: 'Завершить сессию',
+            onTap: onLogout,
+            titleColor: const Color(0xFFE53935),
+          ),
+
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color? titleColor;
+
+  const _MenuTile({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.titleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: 'Onest',
+                        fontFamilyFallback: const ['Roboto'],
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor ?? AppPalette.ink,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontFamily: 'Onest',
+                        fontFamilyFallback: ['Roboto'],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppPalette.ink2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppPalette.ink3,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _NavItem extends StatelessWidget {
   final IconData icon;

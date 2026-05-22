@@ -3,6 +3,7 @@ import 'package:case_go/core/api/admin/admin_api.dart';
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
 import 'package:case_go/core/api/auth_client.dart';
+import 'package:case_go/features/home/home_cases_cubit.dart';
 import 'package:case_go/core/api/case_profile/case_profile.dart';
 import 'package:case_go/core/api/case_profile/case_profile_impl.dart';
 import 'package:case_go/core/api/cases/cases.dart';
@@ -76,6 +77,12 @@ void main() async {
       accessTokenProvider: () => storage.accessTokenSync ?? '',
       client: authHttpClient,
     ),
+  );
+
+  // HomeCasesCubit — синглтон, чтобы данные главного экрана не перезагружались
+  // при каждом возврате свайпом. Создаётся лениво при первом обращении.
+  getIt.registerLazySingleton<HomeCasesCubit>(
+    () => HomeCasesCubit(getIt<CaseGoApi>()),
   );
 
   getIt.registerSingleton<AuthRepository>(
