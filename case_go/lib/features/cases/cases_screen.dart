@@ -252,7 +252,9 @@ class _CaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final topic = caseData['topic'] as String? ?? 'Без темы';
     final description = caseData['description'] as String? ?? '';
-    final category = (caseData['category'] as String? ?? '').toLowerCase();
+    // category может быть int или String — используем toString() для безопасности
+    final categoryRaw = caseData['category'];
+    final category = categoryRaw != null ? categoryRaw.toString().toLowerCase() : '';
     final isGenerated = caseData['is_generated'] as bool? ?? false;
 
     final cat = _catColors[category];
@@ -346,7 +348,7 @@ class _CaseCard extends StatelessWidget {
             // ── Bottom row: category chip + start button
             Row(
               children: [
-                if (caseData['category'] != null)
+                if (categoryRaw != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 5),
@@ -361,7 +363,7 @@ class _CaseCard extends StatelessWidget {
                             size: 13, color: catFg),
                         const SizedBox(width: 4),
                         Text(
-                          caseData['category'] as String,
+                          categoryRaw.toString(),
                           style: TextStyle(
                             fontFamily: 'Onest',
                             color: catFg,

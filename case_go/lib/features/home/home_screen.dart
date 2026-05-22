@@ -2,64 +2,60 @@ import 'package:case_go/core/theme/app_palete.dart';
 import 'package:case_go/core/widgets/casey_mascot.dart';
 import 'package:case_go/core/widgets/clay_button.dart';
 import 'package:case_go/features/home/home_bloc.dart';
+import 'package:case_go/features/home/home_cases_cubit.dart';
 import 'package:case_go/features/profile_setup/profile_setup_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-// ── Статические данные категорий ──────────────────────────────────────────────
+// ── Данные категорий (apiKey = int из БД) ─────────────────────────────────────
 
-const _categories = [
-  _Category(
-    key: 'comm',
-    label: 'Коммуникация',
-    count: 5,
-    color: AppPalette.catCommColor,
-    bg: AppPalette.catCommBg,
-    icon: Icons.chat_bubble_outline_rounded,
-  ),
-  _Category(
-    key: 'lead',
-    label: 'Лидерство',
-    count: 7,
-    color: AppPalette.catLeadColor,
-    bg: AppPalette.catLeadBg,
-    icon: Icons.emoji_events_outlined,
-  ),
-  _Category(
-    key: 'neg',
-    label: 'Переговоры',
-    count: 4,
-    color: AppPalette.catNegColor,
-    bg: AppPalette.catNegBg,
-    icon: Icons.people_outline_rounded,
-  ),
-  _Category(
-    key: 'conf',
-    label: 'Конфликты',
-    count: 6,
-    color: AppPalette.catConfColor,
-    bg: AppPalette.catConfBg,
-    icon: Icons.track_changes_rounded,
-  ),
-];
-
+/// apiKey — числовой ID категории на бэкенде (1–5)
 class _Category {
-  final String key;
+  final int apiKey;
   final String label;
-  final int count;
   final Color color;
   final Color bg;
   final IconData icon;
   const _Category({
-    required this.key,
+    required this.apiKey,
     required this.label,
-    required this.count,
     required this.color,
     required this.bg,
     required this.icon,
   });
 }
+
+const _categories = [
+  _Category(
+    apiKey: 1,
+    label: 'Общение',
+    color: AppPalette.catCommColor,
+    bg: AppPalette.catCommBg,
+    icon: Icons.chat_bubble_outline_rounded,
+  ),
+  _Category(
+    apiKey: 2,
+    label: 'Управление',
+    color: AppPalette.catLeadColor,
+    bg: AppPalette.catLeadBg,
+    icon: Icons.emoji_events_outlined,
+  ),
+  _Category(
+    apiKey: 3,
+    label: 'Продажи',
+    color: AppPalette.catNegColor,
+    bg: AppPalette.catNegBg,
+    icon: Icons.trending_up_rounded,
+  ),
+  _Category(
+    apiKey: 4,
+    label: 'Переговоры',
+    color: AppPalette.catConfColor,
+    bg: AppPalette.catConfBg,
+    icon: Icons.people_outline_rounded,
+  ),
+];
 
 // ── Экран ─────────────────────────────────────────────────────────────────────
 
@@ -115,37 +111,73 @@ class HomeScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const _CaseGoLogo(size: 22),
+            const _CaseGoLogo(size: 26),
             BlocBuilder<HomeBloc, HomeState>(
               builder: (context, state) {
                 final isAuth = state is Authenticated;
-                final initials = isAuth
-                    ? _initials((state).user['username'] as String? ??
+                final name = isAuth
+                    ? ((state).user['username'] as String? ??
                         (state).user['email'] as String? ??
                         'U')
-                    : '?';
+                    : null;
+                final initials = name != null ? _initials(name) : '?';
+
                 return GestureDetector(
                   onTap: () => isAuth
                       ? context.push('/profile')
                       : context.push('/auth'),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: AppPalette.claySoft(
-                      color: AppPalette.primaryTint,
-                      radius: 14,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        fontFamily: 'Unbounded',
-                        fontFamilyFallback: ['Roboto'],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.primaryDeep,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Имя пользователя (если авторизован)
+                      if (name != null) ...[
+                        Text(
+                          name.split(' ').first, // только имя
+                          style: const TextStyle(
+                            fontFamily: 'Onest',
+                            fontFamilyFallback: ['Roboto'],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppPalette.ink2,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      // Аватар — тёмный clay с белыми инициалами
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppPalette.ink,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            // Lip-тень как у ClayButton
+                            BoxShadow(
+                              color: Color(0xFF0E1A12),
+                              offset: Offset(0, 4),
+                              blurRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: Color(0x301A2E22),
+                              offset: Offset(0, 8),
+                              blurRadius: 14,
+                              spreadRadius: -4,
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontFamily: 'Unbounded',
+                            fontFamilyFallback: ['Roboto'],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFFAF6EC),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 );
               },
@@ -260,127 +292,166 @@ class HomeScreen extends StatelessWidget {
         children: [
           const _SectionTitle('Сегодняшний вызов'),
           const SizedBox(height: 10),
-          Container(
-            decoration: AppPalette.clayDeep(
-              color: AppPalette.primary,
-              radius: 28,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: [
-                // Декоративные блобы
-                Positioned(
-                  right: -30,
-                  top: -30,
-                  child: Container(
-                    width: 160,
-                    height: 160,
-                    decoration: const BoxDecoration(
-                      color: Color(0x2EA8D5BA),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+          BlocBuilder<HomeCasesCubit, HomeCasesState>(
+            builder: (context, casesState) {
+              // Данные кейса
+              final featured = casesState is HomeCasesLoaded
+                  ? casesState.featuredCase
+                  : null;
+              final topic = featured?['topic'] as String? ?? 'Загружаем кейс…';
+              final desc = featured?['description'] as String? ?? '';
+              final caseId = featured?['id'] as int?;
+              final isLoading = casesState is HomeCasesLoading;
+
+              return Container(
+                decoration: AppPalette.clayDeep(
+                  color: AppPalette.primary,
+                  radius: 28,
                 ),
-                Positioned(
-                  right: 40,
-                  bottom: -50,
-                  child: Container(
-                    width: 90,
-                    height: 90,
-                    decoration: const BoxDecoration(
-                      color: Color(0x33FFC857),
-                      shape: BoxShape.circle,
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  children: [
+                    // Декоративные блобы
+                    Positioned(
+                      right: -30,
+                      top: -30,
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: const BoxDecoration(
+                          color: Color(0x2EA8D5BA),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                // Контент
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Eyebrow
-                            Row(
+                    Positioned(
+                      right: 40,
+                      bottom: -50,
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: const BoxDecoration(
+                          color: Color(0x33FFC857),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    // Контент
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.auto_awesome_rounded,
-                                    color: AppPalette.accentYellow, size: 14),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'ЕЖЕДНЕВНЫЙ КЕЙС',
-                                  style: TextStyle(
-                                    fontFamily: 'Onest',
-                                    fontFamilyFallback: ['Roboto'],
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppPalette.accentYellow,
-                                    letterSpacing: 0.4,
+                                // Eyebrow
+                                Row(
+                                  children: [
+                                    const Icon(Icons.auto_awesome_rounded,
+                                        color: AppPalette.accentYellow,
+                                        size: 14),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'ЕЖЕДНЕВНЫЙ КЕЙС',
+                                      style: TextStyle(
+                                        fontFamily: 'Onest',
+                                        fontFamilyFallback: ['Roboto'],
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppPalette.accentYellow,
+                                        letterSpacing: 0.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Тема кейса
+                                isLoading
+                                    ? const _HeroSkeleton()
+                                    : Text(
+                                        topic,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontFamily: 'Unbounded',
+                                          fontFamilyFallback: ['Roboto'],
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFFAF6EC),
+                                          letterSpacing: -0.3,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                if (!isLoading && desc.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    desc,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'Onest',
+                                      fontSize: 13,
+                                      color: Color(0xB3FAF6EC),
+                                      height: 1.4,
+                                    ),
                                   ),
+                                ],
+                                const SizedBox(height: 14),
+                                // Meta chips
+                                const Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    _MetaChip(
+                                        icon: Icons.bolt_rounded,
+                                        text: '+120 XP',
+                                        iconColor: AppPalette.accentYellow),
+                                  ],
+                                ),
+                                const SizedBox(height: 18),
+                                // CTA
+                                ClayButton(
+                                  colorScheme: 'yellow',
+                                  size: ClayButtonSize.md,
+                                  leadingIcon: const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 18,
+                                      color: Color(0xFF3A2A0A)),
+                                  onTap: () {
+                                    if (caseId != null && featured != null) {
+                                      context.push(
+                                        '/cases/$caseId',
+                                        extra: featured,
+                                      );
+                                    } else {
+                                      context.push('/cases');
+                                    }
+                                  },
+                                  child: const Text('Начать'),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Сложный разговор\nс подчинённым',
-                              style: TextStyle(
-                                fontFamily: 'Unbounded',
-                                fontFamilyFallback: ['Roboto'],
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFFAF6EC),
-                                letterSpacing: -0.3,
-                                height: 1.15,
-                              ),
+                          ),
+                          // Кейси cheer
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(right: -4, bottom: -8),
+                            child: CaseyMascot(
+                              size: 86,
+                              expression: 'cheer',
+                              accentColor: AppPalette.primarySoft,
+                              animate: true,
                             ),
-                            const SizedBox(height: 14),
-                            // Meta chips
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: const [
-                                _MetaChip(
-                                    icon: Icons.schedule_rounded,
-                                    text: '8 мин'),
-                                _MetaChip(
-                                    icon: Icons.bolt_rounded,
-                                    text: '+120 XP',
-                                    iconColor: AppPalette.accentYellow),
-                                _DifficultyChip(level: 2),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            // CTA
-                            ClayButton(
-                              colorScheme: 'yellow',
-                              size: ClayButtonSize.md,
-                              leadingIcon: const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 18,
-                                  color: Color(0xFF3A2A0A)),
-                              onTap: () => context.push('/cases'),
-                              child: const Text('Начать'),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      // Кейси cheer
-                      Padding(
-                        padding: const EdgeInsets.only(right: -4, bottom: -8),
-                        child: CaseyMascot(
-                          size: 86,
-                          expression: 'cheer',
-                          accentColor: AppPalette.primarySoft,
-                          animate: true,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -415,19 +486,32 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: _categories
-                .map((cat) => _CategoryCard(
-                      category: cat,
-                      onTap: () => context.push('/cases'),
-                    ))
-                .toList(),
+          BlocBuilder<HomeCasesCubit, HomeCasesState>(
+            builder: (context, casesState) {
+              // Реальные счётчики из БД
+              final counts = casesState is HomeCasesLoaded
+                  ? casesState.categoryCounts
+                  : <dynamic, int>{};
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.5,
+                children: _categories
+                    .map((cat) => _CategoryCard(
+                          category: cat,
+                          // Ищем по int-ключу, потом по строковому значению
+                          count: counts[cat.apiKey] ??
+                              counts[cat.apiKey.toString()] ??
+                              0,
+                          onTap: () => context.push('/cases'),
+                        ))
+                    .toList(),
+              );
+            },
           ),
         ],
       ),
@@ -526,47 +610,103 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+// ── Hero skeleton (пока грузятся кейсы) ──────────────────────────────────────
+
+class _HeroSkeleton extends StatelessWidget {
+  const _HeroSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 22,
+          width: 200,
+          decoration: BoxDecoration(
+            color: const Color(0x30FAF6EC),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 22,
+          width: 140,
+          decoration: BoxDecoration(
+            color: const Color(0x20FAF6EC),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Reusable widgets ──────────────────────────────────────────────────────────
 
 class _CaseGoLogo extends StatelessWidget {
   final double size;
-  const _CaseGoLogo({this.size = 22});
+  const _CaseGoLogo({this.size = 26});
 
   @override
   Widget build(BuildContext context) {
-    final markSize = size * 1.2;
+    final markSize = size * 1.45;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Иконка-марк с clay-тенью
         Container(
           width: markSize,
           height: markSize,
           decoration: BoxDecoration(
             color: AppPalette.primary,
-            borderRadius: BorderRadius.circular(markSize * 0.32),
+            borderRadius: BorderRadius.circular(markSize * 0.30),
+            boxShadow: const [
+              BoxShadow(
+                color: AppPalette.primaryDeep,
+                offset: Offset(0, 4),
+                blurRadius: 0,
+              ),
+              BoxShadow(
+                color: Color(0x281A2E22),
+                offset: Offset(0, 8),
+                blurRadius: 14,
+                spreadRadius: -4,
+              ),
+            ],
           ),
-          child: Icon(Icons.work_rounded,
-              color: Colors.white, size: markSize * 0.6),
+          child: Icon(
+            Icons.work_rounded,
+            color: const Color(0xFFFAF6EC),
+            size: markSize * 0.58,
+          ),
         ),
-        SizedBox(width: size * 0.36),
+        SizedBox(width: size * 0.4),
+        // Текст «case go»
         RichText(
           text: TextSpan(
             style: TextStyle(
               fontFamily: 'Unbounded',
               fontFamilyFallback: const ['Roboto'],
               fontSize: size,
-              letterSpacing: -0.3,
+              letterSpacing: -0.5,
+              height: 1,
             ),
             children: const [
               TextSpan(
-                  text: 'case',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700, color: AppPalette.ink)),
+                text: 'case',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppPalette.ink,
+                ),
+              ),
               TextSpan(
-                  text: 'go',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppPalette.primary)),
+                text: 'go',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppPalette.primary,
+                ),
+              ),
             ],
           ),
         ),
@@ -747,9 +887,14 @@ class _DifficultyChip extends StatelessWidget {
 
 class _CategoryCard extends StatelessWidget {
   final _Category category;
+  final int count;
   final VoidCallback onTap;
 
-  const _CategoryCard({required this.category, required this.onTap});
+  const _CategoryCard({
+    required this.category,
+    required this.count,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -783,7 +928,7 @@ class _CategoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '${category.count} кейсов',
+              '$count кейсов',
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,

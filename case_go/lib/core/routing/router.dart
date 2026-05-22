@@ -14,6 +14,7 @@ import 'package:case_go/features/dialog/dialog_screen.dart';
 import 'package:case_go/features/history/history_cubit.dart';
 import 'package:case_go/features/history/history_screen.dart';
 import 'package:case_go/features/home/home_bloc.dart';
+import 'package:case_go/features/home/home_cases_cubit.dart';
 import 'package:case_go/features/home/home_screen.dart';
 import 'package:case_go/features/instructions/instructions_screen.dart';
 import 'package:case_go/features/profile/profile_cubit.dart';
@@ -108,7 +109,10 @@ class AppRouter {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const HomeScreen(),
+          builder: (context, state) => BlocProvider(
+            create: (_) => HomeCasesCubit(GetIt.I<CaseGoApi>())..load(),
+            child: const HomeScreen(),
+          ),
         ),
 
         GoRoute(
