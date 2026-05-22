@@ -45,10 +45,24 @@ class CaseGoApiImpl implements CaseGoApi {
     _logResp(r);
     if (r.statusCode >= 200 && r.statusCode < 300) {
       final body = jsonDecode(r.body);
+
+      // 1. Прямой массив
       if (body is List) return body.cast<Map<String, dynamic>>();
-      // Backend may wrap in object
-      if (body is Map && body.containsKey('cases')) {
-        return (body['cases'] as List).cast<Map<String, dynamic>>();
+
+      // 2. Объект — перебираем все распространённые ключи-обёртки
+      if (body is Map) {
+        dev.log('← body keys: ${body.keys.toList()}', name: 'CaseGoApi');
+        for (final key in [
+          'cases', 'items', 'data', 'results',
+          'case_list', 'list', 'content', 'records',
+        ]) {
+          if (body.containsKey(key) && body[key] is List) {
+            return (body[key] as List).cast<Map<String, dynamic>>();
+          }
+        }
+        // Если ни один ключ не совпал — логируем чтобы сразу видеть структуру
+        dev.log('← unknown list wrapper, keys: ${body.keys}',
+            name: 'CaseGoApi');
       }
       return [];
     }

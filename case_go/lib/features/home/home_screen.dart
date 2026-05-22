@@ -278,14 +278,15 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 10),
           BlocBuilder<HomeCasesCubit, HomeCasesState>(
             builder: (context, casesState) {
-              // Данные кейса
+              final isLoading = casesState is HomeCasesLoading;
+              final isError   = casesState is HomeCasesError;
+
               final featured = casesState is HomeCasesLoaded
                   ? casesState.featuredCase
                   : null;
-              final topic = featured?['topic'] as String? ?? 'Загружаем кейс…';
-              final desc = featured?['description'] as String? ?? '';
+              final topic = featured?['topic'] as String?;
+              final desc  = featured?['description'] as String? ?? '';
               final caseId = featured?['id'] as int?;
-              final isLoading = casesState is HomeCasesLoading;
 
               return Container(
                 decoration: AppPalette.clayDeep(
@@ -351,24 +352,51 @@ class HomeScreen extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                // Тема кейса
-                                isLoading
-                                    ? const _HeroSkeleton()
-                                    : Text(
-                                        topic,
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontFamily: 'Unbounded',
-                                          fontFamilyFallback: ['Roboto'],
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFFFAF6EC),
-                                          letterSpacing: -0.3,
-                                          height: 1.2,
-                                        ),
+                                // Тема кейса — три состояния
+                                if (isLoading)
+                                  const _HeroSkeleton()
+                                else if (isError)
+                                  GestureDetector(
+                                    onTap: () => context
+                                        .read<HomeCasesCubit>()
+                                        .load(),
+                                    child: const Text(
+                                      'Не удалось загрузить.\nНажмите чтобы повторить',
+                                      style: TextStyle(
+                                        fontFamily: 'Onest',
+                                        fontSize: 14,
+                                        color: Color(0xCCFAF6EC),
+                                        height: 1.4,
                                       ),
-                                if (!isLoading && desc.isNotEmpty) ...[
+                                    ),
+                                  )
+                                else if (topic != null)
+                                  Text(
+                                    topic,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'Unbounded',
+                                      fontFamilyFallback: ['Roboto'],
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFAF6EC),
+                                      letterSpacing: -0.3,
+                                      height: 1.2,
+                                    ),
+                                  )
+                                else
+                                  // Загрузилось, но кейсов нет
+                                  const Text(
+                                    'Кейсы ещё не добавлены',
+                                    style: TextStyle(
+                                      fontFamily: 'Onest',
+                                      fontSize: 14,
+                                      color: Color(0xCCFAF6EC),
+                                    ),
+                                  ),
+                                if (!isLoading && !isError &&
+                                    desc.isNotEmpty) ...[
                                   const SizedBox(height: 6),
                                   Text(
                                     desc,

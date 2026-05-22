@@ -2,6 +2,7 @@ import 'package:case_go/core/api/admin/admin.dart';
 import 'package:case_go/core/api/admin/admin_api.dart';
 import 'package:case_go/core/api/auth/auth.dart';
 import 'package:case_go/core/api/auth/auth_api.dart';
+import 'package:case_go/core/api/auth_client.dart';
 import 'package:case_go/core/api/case_profile/case_profile.dart';
 import 'package:case_go/core/api/case_profile/case_profile_impl.dart';
 import 'package:case_go/core/api/cases/cases.dart';
@@ -29,10 +30,19 @@ void main() async {
 
   getIt.registerSingleton<StorageService>(storage);
 
+  // Единый HTTP-клиент с автоматическим обновлением JWT.
+  // Все API-реализации используют его, кроме AuthApiImpl (логин/регистрация
+  // работают без токена, а refresh вызывается внутри самого клиента).
+  final authHttpClient = AuthHttpClient(
+    storage: storage,
+    refreshUrl: '${AppConfig.authUrl}/refresh',
+  );
+
   getIt.registerSingleton<AuthApi>(
     AuthApiImpl(
       baseUrl: AppConfig.authUrl,
       accessTokenProvider: () => storage.accessTokenSync,
+      // AuthApi использует обычный клиент — refresh делает authHttpClient
     ),
   );
 
@@ -40,6 +50,7 @@ void main() async {
     ProfileApiImpl(
       baseUrl: AppConfig.profileUrl,
       accessTokenProvider: () => storage.accessTokenSync ?? '',
+      client: authHttpClient,
     ),
   );
 
@@ -47,6 +58,7 @@ void main() async {
     CaseGoApiImpl(
       baseUrl: AppConfig.caseGoUrl,
       accessTokenProvider: () => storage.accessTokenSync ?? '',
+      client: authHttpClient,
     ),
   );
 
@@ -54,6 +66,7 @@ void main() async {
     CaseProfileApiImpl(
       baseUrl: AppConfig.caseProfileUrl,
       accessTokenProvider: () => storage.accessTokenSync ?? '',
+      client: authHttpClient,
     ),
   );
 
@@ -61,6 +74,7 @@ void main() async {
     AdminApiImpl(
       usersBaseUrl: '${AppConfig.authUrl.replaceFirst('/auth', '/users')}',
       accessTokenProvider: () => storage.accessTokenSync ?? '',
+      client: authHttpClient,
     ),
   );
 

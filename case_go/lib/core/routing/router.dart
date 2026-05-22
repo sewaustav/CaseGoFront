@@ -32,9 +32,20 @@ import 'dart:developer' as dev;
 
 class _BlocRefreshListenable extends ChangeNotifier {
   _BlocRefreshListenable(this._bloc) {
-    _bloc.stream.listen((_) {
-      dev.log('🔄 HomeBloc state changed → notifying GoRouter', name: 'Router');
-      notifyListeners();
+    // Уведомляем GoRouter только при смене ТИПА состояния
+    // (например, Loading → Authenticated или Authenticated → Unauthenticated).
+    // Это предотвращает двойную перерисовку экранов при свайпе назад —
+    // иначе любое промежуточное состояние HomeBloc вызывало rebuild роутера.
+    Type _prevType = _bloc.state.runtimeType;
+    _bloc.stream.listen((state) {
+      if (state.runtimeType != _prevType) {
+        _prevType = state.runtimeType;
+        dev.log(
+          '🔄 HomeBloc auth type → ${state.runtimeType} — notifying GoRouter',
+          name: 'Router',
+        );
+        notifyListeners();
+      }
     });
   }
 
