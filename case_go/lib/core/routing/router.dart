@@ -156,10 +156,20 @@ class AppRouter {
         GoRoute(
           path: '/cases',
           name: 'cases',
-          builder: (context, state) => BlocProvider(
-            create: (_) => CasesCubit(GetIt.I<CaseGoApi>()),
-            child: const CasesScreen(),
-          ),
+          builder: (context, state) {
+            // extra может быть {'category': int, 'categoryLabel': String}
+            final extra = state.extra as Map<String, dynamic>?;
+            final category = extra?['category'] as int?;
+            final categoryLabel = extra?['categoryLabel'] as String?;
+            return BlocProvider(
+              create: (_) => CasesCubit(GetIt.I<CaseGoApi>())
+                ..load(category: category),
+              child: CasesScreen(
+                initialCategory: category,
+                initialCategoryLabel: categoryLabel,
+              ),
+            );
+          },
         ),
 
         GoRoute(

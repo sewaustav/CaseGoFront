@@ -115,69 +115,50 @@ class HomeScreen extends StatelessWidget {
             BlocBuilder<HomeBloc, HomeState>(
               builder: (context, state) {
                 final isAuth = state is Authenticated;
-                final name = isAuth
+                final rawName = isAuth
                     ? ((state).user['username'] as String? ??
                         (state).user['email'] as String? ??
                         'U')
                     : null;
-                final initials = name != null ? _initials(name) : '?';
+                // Инициалы берём только из никнейма/имени, без домена почты
+                final initials = rawName != null ? _initials(rawName) : '?';
 
                 return GestureDetector(
                   onTap: () => isAuth
                       ? context.push('/profile')
                       : context.push('/auth'),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Имя пользователя (если авторизован)
-                      if (name != null) ...[
-                        Text(
-                          name.split(' ').first, // только имя
-                          style: const TextStyle(
-                            fontFamily: 'Onest',
-                            fontFamilyFallback: ['Roboto'],
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppPalette.ink2,
-                          ),
+                  // Аватар — тёмный clay с белыми инициалами
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppPalette.ink,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0xFF0E1A12),
+                          offset: Offset(0, 4),
+                          blurRadius: 0,
                         ),
-                        const SizedBox(width: 10),
+                        BoxShadow(
+                          color: Color(0x301A2E22),
+                          offset: Offset(0, 8),
+                          blurRadius: 14,
+                          spreadRadius: -4,
+                        ),
                       ],
-                      // Аватар — тёмный clay с белыми инициалами
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: AppPalette.ink,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [
-                            // Lip-тень как у ClayButton
-                            BoxShadow(
-                              color: Color(0xFF0E1A12),
-                              offset: Offset(0, 4),
-                              blurRadius: 0,
-                            ),
-                            BoxShadow(
-                              color: Color(0x301A2E22),
-                              offset: Offset(0, 8),
-                              blurRadius: 14,
-                              spreadRadius: -4,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontFamily: 'Unbounded',
-                            fontFamilyFallback: ['Roboto'],
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFFAF6EC),
-                          ),
-                        ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontFamily: 'Unbounded',
+                        fontFamilyFallback: ['Roboto'],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFAF6EC),
                       ),
-                    ],
+                    ),
                   ),
                 );
               },
@@ -193,11 +174,14 @@ class HomeScreen extends StatelessWidget {
   Widget _buildGreeting(BuildContext context) {
     return BlocBuilder<HomeBloc, HomeState>(
       builder: (context, state) {
-        final username = state is Authenticated
-            ? (state.user['username'] as String? ??
-                  state.user['email'] as String? ??
-                  'друг')
-            : null;
+        // Если нет никнейма — берём часть email до @
+        String? username;
+        if (state is Authenticated) {
+          final raw = state.user['username'] as String? ??
+              state.user['email'] as String? ??
+              'друг';
+          username = raw.contains('@') ? raw.split('@').first : raw;
+        }
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -503,11 +487,16 @@ class HomeScreen extends StatelessWidget {
                 children: _categories
                     .map((cat) => _CategoryCard(
                           category: cat,
-                          // Ищем по int-ключу, потом по строковому значению
                           count: counts[cat.apiKey] ??
                               counts[cat.apiKey.toString()] ??
                               0,
-                          onTap: () => context.push('/cases'),
+                          onTap: () => context.push(
+                            '/cases',
+                            extra: {
+                              'category': cat.apiKey,
+                              'categoryLabel': cat.label,
+                            },
+                          ),
                         ))
                     .toList(),
               );
@@ -602,11 +591,13 @@ class HomeScreen extends StatelessWidget {
   // ── Утилиты ─────────────────────────────────────────────────────────────────
 
   static String _initials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
+    // Если пришёл email — берём часть до @
+    final clean = name.contains('@') ? name.split('@').first : name;
+    final parts = clean.trim().split(RegExp(r'[\s._-]+'));
+    if (parts.length >= 2 && parts[1].isNotEmpty) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
-    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    return clean.isNotEmpty ? clean[0].toUpperCase() : 'U';
   }
 }
 

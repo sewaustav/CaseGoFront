@@ -12,6 +12,7 @@ class CasesLoaded extends CasesState {
   final bool hasMore;
   final int page;
   final String? topicFilter;
+  final int? categoryFilter;
   final bool loadingMore;
 
   CasesLoaded({
@@ -19,6 +20,7 @@ class CasesLoaded extends CasesState {
     required this.hasMore,
     required this.page,
     this.topicFilter,
+    this.categoryFilter,
     this.loadingMore = false,
   });
 
@@ -28,6 +30,8 @@ class CasesLoaded extends CasesState {
     int? page,
     String? topicFilter,
     bool clearTopic = false,
+    int? categoryFilter,
+    bool clearCategory = false,
     bool? loadingMore,
   }) =>
       CasesLoaded(
@@ -35,6 +39,8 @@ class CasesLoaded extends CasesState {
         hasMore: hasMore ?? this.hasMore,
         page: page ?? this.page,
         topicFilter: clearTopic ? null : (topicFilter ?? this.topicFilter),
+        categoryFilter:
+            clearCategory ? null : (categoryFilter ?? this.categoryFilter),
         loadingMore: loadingMore ?? this.loadingMore,
       );
 }
@@ -52,16 +58,21 @@ class CasesCubit extends Cubit<CasesState> {
 
   CasesCubit(this._api) : super(CasesLoading());
 
-  Future<void> load({String? topic}) async {
+  Future<void> load({String? topic, int? category}) async {
     emit(CasesLoading());
     try {
       final list = await _api.getCases(
-          limit: _pageSize, page: 1, topic: topic);
+        limit: _pageSize,
+        page: 1,
+        topic: topic,
+        category: category,
+      );
       emit(CasesLoaded(
         cases: list,
         hasMore: list.length >= _pageSize,
         page: 1,
         topicFilter: topic,
+        categoryFilter: category,
       ));
     } catch (e) {
       emit(CasesError(e.toString()));
@@ -80,6 +91,7 @@ class CasesCubit extends Cubit<CasesState> {
         limit: _pageSize,
         page: nextPage,
         topic: current.topicFilter,
+        category: current.categoryFilter,
       );
       emit(current.copyWith(
         cases: [...current.cases, ...list],
@@ -93,6 +105,15 @@ class CasesCubit extends Cubit<CasesState> {
   }
 
   Future<void> applyTopicFilter(String? topic) async {
-    await load(topic: topic?.isEmpty == true ? null : topic);
+    final cat = state is CasesLoaded
+        ? (state as CasesLoaded).categoryFilter
+        : null;
+    await load(topic: topic?.isEmpty == true ? null : topic, category: cat);
+  }
+
+  Future<void> clearCategoryFilter() async {
+    final topic =
+        state is CasesLoaded ? (state as CasesLoaded).topicFilter : null;
+    await load(topic: topic);
   }
 }

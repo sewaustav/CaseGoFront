@@ -7,7 +7,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 class CasesScreen extends StatefulWidget {
-  const CasesScreen({super.key});
+  final int? initialCategory;
+  final String? initialCategoryLabel;
+
+  const CasesScreen({
+    super.key,
+    this.initialCategory,
+    this.initialCategoryLabel,
+  });
 
   @override
   State<CasesScreen> createState() => _CasesScreenState();
@@ -20,7 +27,7 @@ class _CasesScreenState extends State<CasesScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<CasesCubit>().load();
+    // Cubit уже вызвал load(category:) из роутера — не дублируем
     _scrollCtrl.addListener(_onScroll);
   }
 
@@ -45,7 +52,11 @@ class _CasesScreenState extends State<CasesScreen> {
       appBar: AppBar(
         backgroundColor: AppPalette.defaultPalette.background,
         elevation: 0,
-        title: const Text('Кейсы'),
+        title: Text(
+          widget.initialCategoryLabel != null
+              ? widget.initialCategoryLabel!
+              : 'Кейсы',
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -77,6 +88,12 @@ class _CasesScreenState extends State<CasesScreen> {
       ),
       body: Column(
         children: [
+          // Бейдж активного фильтра категории
+          if (widget.initialCategory != null)
+            _CategoryFilterBadge(
+              label: widget.initialCategoryLabel ?? 'Категория',
+              onClear: () => context.go('/cases'),
+            ),
           _SearchBar(
             topicCtrl: _topicCtrl,
             onApply: () =>
@@ -129,6 +146,63 @@ class _CasesScreenState extends State<CasesScreen> {
                   },
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Category Filter Badge ─────────────────────────────────────────────────────
+
+class _CategoryFilterBadge extends StatelessWidget {
+  final String label;
+  final VoidCallback onClear;
+  const _CategoryFilterBadge({required this.label, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppPalette.primaryTint,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppPalette.primarySoft,
+                  offset: Offset(0, 3),
+                  blurRadius: 0,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.filter_list_rounded,
+                    size: 15, color: AppPalette.primary),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Onest',
+                    color: AppPalette.primaryDeep,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onClear,
+                  child: const Icon(Icons.close_rounded,
+                      size: 15, color: AppPalette.primary),
+                ),
+              ],
             ),
           ),
         ],
