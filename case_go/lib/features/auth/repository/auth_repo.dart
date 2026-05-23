@@ -277,7 +277,7 @@ class AuthRepository {
     if (refresh == null) return null;
 
     try {
-      final data = await _api.refreshToken({'refresh': refresh});
+      final data = await _api.refreshToken({'refresh_token': refresh});
       await _storage.setAccessToken(_extractAccessToken(data));
       final user = await _fetchMe();
       final profileExists = await hasProfile();
