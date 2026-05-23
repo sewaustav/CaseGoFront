@@ -12,9 +12,22 @@ class ResultScreen extends StatelessWidget {
     final palette =
         Theme.of(context).extension<AppPalette>() ?? AppPalette.defaultPalette;
 
-    final skills = result['skills_rating'] as Map<String, dynamic>? ?? result;
-    final stepsCount = result['steps_count'] ?? 0;
-    final tokensUsed = result['tokens_used'] ?? 0;
+    // Бэк возвращает ResultResponse { result, level }.
+    // Если пришёл старый формат (плоский) — падаем обратно на него.
+    final resultData =
+        result['result'] as Map<String, dynamic>? ?? result;
+    final levelData =
+        result['level'] as Map<String, dynamic>?;
+
+    final skills =
+        resultData['skills_rating'] as Map<String, dynamic>? ?? resultData;
+    final stepsCount = resultData['steps_count'] ?? 0;
+    final tokensUsed = resultData['tokens_used'] ?? 0;
+
+    final xpEarned = levelData?['xp_earned'] as int? ?? 0;
+    final currentLevel = levelData?['level'] as int? ?? 0;
+    final currentXp = levelData?['xp'] as int? ?? 0;
+    final levelUp = levelData?['level_up'] as bool? ?? false;
 
     return PopScope(
       canPop: false,
@@ -75,6 +88,16 @@ class ResultScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (xpEarned > 0) ...[
+                      const SizedBox(height: 12),
+                      _XpCard(
+                        palette: palette,
+                        xpEarned: xpEarned,
+                        currentLevel: currentLevel,
+                        currentXp: currentXp,
+                        levelUp: levelUp,
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     // Radar chart
@@ -177,6 +200,90 @@ class ResultScreen extends StatelessWidget {
 
   List<double> _extractValues(Map<String, dynamic> s) =>
       _skillEntries.map((e) => (s[e.$1] as num? ?? 0).toDouble()).toList();
+}
+
+// ── XP Card ───────────────────────────────────────────────────────────────────
+
+class _XpCard extends StatelessWidget {
+  final AppPalette palette;
+  final int xpEarned;
+  final int currentLevel;
+  final int currentXp;
+  final bool levelUp;
+
+  const _XpCard({
+    required this.palette,
+    required this.xpEarned,
+    required this.currentLevel,
+    required this.currentXp,
+    required this.levelUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: palette.contrastBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          // XP badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: palette.altBtn,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '+$xpEarned XP',
+              style: TextStyle(
+                color: palette.contrastBg,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (levelUp)
+                  Text(
+                    '🎉 Новый уровень: $currentLevel!',
+                    style: TextStyle(
+                      color: palette.background,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  )
+                else
+                  Text(
+                    'Уровень $currentLevel',
+                    style: TextStyle(
+                      color: palette.background,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                Text(
+                  '$currentXp XP всего',
+                  style: TextStyle(
+                    color: palette.background.withOpacity(0.6),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.star_rounded, color: palette.altBtn, size: 28),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
