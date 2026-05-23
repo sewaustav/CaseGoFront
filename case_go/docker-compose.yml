@@ -11,3 +11,11 @@ services:
      - /etc/letsencrypt:/etc/letsencrypt:ro
      - /opt/3x-ui/subscription:/usr/share/nginx/html/sub:ro
     restart: unless-stopped
+    networks:
+      - default
+      - backend
+
+networks:
+  backend:
+    external: true
+    name: backend_app-network
