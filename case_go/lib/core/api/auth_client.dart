@@ -90,7 +90,7 @@ class AuthHttpClient extends http.BaseClient {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: jsonEncode({'refresh': refreshToken}),
+        body: jsonEncode({'refresh_token': refreshToken}),
       );
 
       dev.log('← refresh response: ${resp.statusCode} ${resp.body}',
