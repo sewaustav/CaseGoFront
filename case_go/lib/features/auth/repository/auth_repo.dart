@@ -265,6 +265,18 @@ class AuthRepository {
     await _authEventsSub?.cancel();
   }
 
+  /// Возвращает xp/level/streak из Profile API, или null если профиль не найден.
+  Future<Map<String, dynamic>?> getProfileLevel() async {
+    try {
+      final data = await _profileApi.getProfile();
+      final usrLevel = data['UsrLevel'];
+      if (usrLevel is Map<String, dynamic>) return usrLevel;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Приватные хелперы ─────────────────────────────────────
 
   Future<AuthUser> _fetchMe() async {

@@ -15,10 +15,24 @@ class HomeRepository {
     if (result == null) return null;
 
     final (user, needsSetup) = result;
-    return ({'id': user.id, 'email': user.email, 'username': user.name, 'role': user.role}, needsSetup);
+    final level = await _authRepository.getProfileLevel();
+    return ({
+      'id': user.id,
+      'email': user.email,
+      'username': user.name,
+      'role': user.role,
+      'xp': level?['xp'] as int? ?? 0,
+      'streak': level?['streak'] as int? ?? 0,
+      'level': level?['level'] as int? ?? 1,
+    }, needsSetup);
   }
 
   Future<void> logout() async {
     await _authRepository.logout();
+  }
+
+  /// Обновляет только xp/level/streak для уже авторизованного пользователя.
+  Future<Map<String, dynamic>?> getLevel() async {
+    return _authRepository.getProfileLevel();
   }
 }

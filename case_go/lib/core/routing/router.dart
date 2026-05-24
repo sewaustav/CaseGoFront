@@ -126,6 +126,8 @@ class AppRouter {
             final cubit = GetIt.I<HomeCasesCubit>();
             // Загружаем только если данных ещё нет
             cubit.loadIfNeeded();
+            // Обновляем xp/level/streak каждый раз при заходе на главную
+            homeBloc.add(RefreshLevel());
             return BlocProvider.value(
               value: cubit,
               child: const HomeScreen(),

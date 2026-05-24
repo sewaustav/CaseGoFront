@@ -9,6 +9,9 @@ class AppStarted extends HomeEvent {}
 
 class LogoutRequested extends HomeEvent {}
 
+/// Обновить xp/level/streak без полной перепроверки сессии.
+class RefreshLevel extends HomeEvent {}
+
 /// Профиль успешно создан — переводим состояние в Authenticated
 /// без лишнего запроса к серверу.
 class ProfileSetupCompleted extends HomeEvent {}
@@ -43,6 +46,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<AppStarted>(_onAppStarted);
     on<LogoutRequested>(_onLogout);
     on<ProfileSetupCompleted>(_onProfileSetupCompleted);
+    on<RefreshLevel>(_onRefreshLevel);
   }
 
   Future<void> _onAppStarted(
@@ -78,5 +82,20 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     if (current is AuthenticatedNeedsProfile) {
       emit(Authenticated(current.user));
     }
+  }
+
+  /// Обновляет xp/level/streak в текущем состоянии без полной перепроверки сессии.
+  Future<void> _onRefreshLevel(
+      RefreshLevel event, Emitter<HomeState> emit) async {
+    final current = state;
+    if (current is! Authenticated) return;
+    final level = await repository.getLevel();
+    if (level == null) return;
+    emit(Authenticated({
+      ...current.user,
+      'xp': level['xp'] as int? ?? current.user['xp'] ?? 0,
+      'streak': level['streak'] as int? ?? current.user['streak'] ?? 0,
+      'level': level['level'] as int? ?? current.user['level'] ?? 1,
+    }));
   }
 }
