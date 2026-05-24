@@ -70,9 +70,10 @@ class _DialogScreenState extends State<DialogScreen> {
         if (state is DialogError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Не удалось завершить кейс. Попробуй ещё раз.'),
+              content: Text('Ошибка: ${state.message}'),
               backgroundColor: Colors.red[400],
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
             ),
           );
           // Возвращаем активный диалог чтобы пользователь мог попробовать снова
