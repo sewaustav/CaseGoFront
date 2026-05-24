@@ -102,6 +102,10 @@ class DialogCubit extends Cubit<DialogState> {
   final CaseGoApi _api;
   static const _minStepsToComplete = 2;
 
+  /// Последнее активное состояние — используется для восстановления
+  /// после ошибки завершения кейса.
+  DialogActive? _lastActive;
+
   DialogCubit(this._api) : super(DialogInitial());
 
   Future<void> startDialog(int caseId, String caseTopic) async {
@@ -180,12 +184,21 @@ class DialogCubit extends Cubit<DialogState> {
   Future<void> completeDialog() async {
     final current = state;
     if (current is! DialogActive) return;
+    _lastActive = current;
     emit(current.copyWith(isSending: true));
     try {
       final result = await _api.completeDialog(current.dialogId);
       emit(DialogCompleted(result));
     } catch (e) {
-      emit(current.copyWith(isSending: false));
+      // Показываем ошибку вместо тихого сброса —
+      // иначе пользователь видит что кнопка не реагирует.
+      emit(DialogError(e.toString()));
     }
+  }
+
+  /// Восстанавливает активный диалог после ошибки завершения.
+  void restoreActive() {
+    final saved = _lastActive;
+    if (saved != null) emit(saved.copyWith(isSending: false));
   }
 }

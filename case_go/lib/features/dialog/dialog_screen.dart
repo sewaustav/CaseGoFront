@@ -67,6 +67,17 @@ class _DialogScreenState extends State<DialogScreen> {
           context.pushReplacement('/result', extra: state.result);
         }
         if (state is DialogActive) _scrollToBottom();
+        if (state is DialogError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Не удалось завершить кейс. Попробуй ещё раз.'),
+              backgroundColor: Colors.red[400],
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // Возвращаем активный диалог чтобы пользователь мог попробовать снова
+          context.read<DialogCubit>().restoreActive();
+        }
       },
       builder: (context, state) {
         if (state is DialogLoading) {
