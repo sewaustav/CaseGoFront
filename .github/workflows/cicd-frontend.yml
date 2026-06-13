@@ -32,12 +32,15 @@ jobs:
         id: tags
         run: |
           IMAGE=ghcr.io/${{ github.repository_owner }}/casego-frontend
+          # монотонная метка: github.run_number сбрасывается при переименовании
+          # workflow, из-за чего numerical ImagePolicy залипает на старом теге
+          SEQ=$(date +%s)
           if [ "${{ github.ref_name }}" = "main" ]; then
             # prod: main-теги подхватывает Flux image automation в k8s
-            echo "tags=$IMAGE:main-${{ github.run_number }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "tags=$IMAGE:main-$SEQ-${{ github.sha }}" >> "$GITHUB_OUTPUT"
           else
             # dev: :latest тянет docker compose на VPS
-            echo "tags=$IMAGE:latest,$IMAGE:dev-${{ github.run_number }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "tags=$IMAGE:latest,$IMAGE:dev-$SEQ-${{ github.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push
